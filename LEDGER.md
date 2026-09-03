@@ -54,7 +54,7 @@ anything in this repository, and none of it should be read as if it were.
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
-| 36-screen React Native / Expo client | [`system-overview.md`](02-architecture/system-overview.md) | — (no mobile tests — [LIMITATIONS](LIMITATIONS.md)) | — | repo-metrics → `36` |
+| 36-screen React Native / Expo client | [`system-overview.md`](02-architecture/system-overview.md) | — (no automated mobile tests; device-walk verified — [LIMITATIONS](LIMITATIONS.md)) | — | repo-metrics → `36` |
 | 16-router FastAPI backend | [`system-overview.md`](02-architecture/system-overview.md) | — | — | repo-metrics → `16` |
 | PostgreSQL / Supabase, 44 migrations | [`data-and-migrations.md`](02-architecture/data-and-migrations.md) | [`code/database/test_migrations_phase_9.py`](code/database/test_migrations_phase_9.py) | — | repo-metrics → `44` |
 | Stripe payments | [`money-path.md`](02-architecture/money-path.md) | [`code/payments/`](code/payments/) — 6 files, 59 `def test_` | [D23](03-decisions/money/D23.md), [D217](03-decisions/money/D217.md), [D218](03-decisions/money/D218.md) | repo-metrics component table |
@@ -212,7 +212,7 @@ the message-guard client, push-tap routing, notification routing, and listing
 coordinate handling — are the client halves of claims proven on the backend side,
 and no résumé sentence points at them directly. They are kept because a reviewer
 asking "what does the client do with the fuzzed coordinate?" should be able to
-look, and because there are **no mobile tests**, which makes seeing the code the
+look, and because there are **no automated mobile tests**, which makes seeing the code the
 only available evidence. Flagged rather than quietly padded.
 
 **Two folders in the plan that were not created:** `tooling/cursor/` and

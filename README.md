@@ -127,7 +127,7 @@ Every removal is itemised with file and line range in
 ## Honesty notes
 
 This is pre-launch software in active development. There is no CI at this
-commit; there are no mobile tests; the double-capture guards are read-then-write
+commit; there are no automated mobile tests — every mobile surface is verified by a recorded device walk (see 05-process/verification-gates.md); the double-capture guards are read-then-write
 without row locks; arrival confirmation is client-reported. An earlier résumé draft said "sixteen call sites" for block enforcement;
 re-derivation gives 13, the résumé now states no count, and
 [`LIMITATIONS.md`](LIMITATIONS.md) shows the command.

@@ -55,7 +55,7 @@ completed launch or a submission state.
 **No CI.** No workflow in the repository at this commit; the suite ran manually
 at session close. "Every change was test-gated" is false and is never claimed.
 
-**No mobile or web tests.** All 751 tests are backend. The figure is always
+**No automated mobile or web tests.** All 751 automated tests are backend. Mobile surfaces are verified by recorded device walks — each screen and flow walked on a physical device with the result logged in the decision log and backlog (see 05-process/verification-gates.md). The figure is always
 written as "751 **backend** tests".
 
 **Concurrency.** Double-capture guards are read-then-write in Python; zero row
