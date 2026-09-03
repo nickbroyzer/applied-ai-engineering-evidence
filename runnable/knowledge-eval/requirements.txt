@@ -1,0 +1,12 @@
+# Pinned to the versions the private repository runs at commit 3413d028
+# (backend/requirements.txt), narrowed to what this package actually imports.
+#
+# Note what is ABSENT: no Anthropic SDK, no OpenAI, no sentence-transformers,
+# no pgvector, no HTTP client pointed at a model provider. This system calls
+# no external service, which is why it runs offline and deterministically.
+fastapi==0.104.1
+sqlalchemy==2.0.23
+psycopg[binary]==3.2.13
+pydantic==2.5.0
+httpx==0.25.1
+pytest==8.3.4

@@ -1,0 +1,185 @@
+<!--
+Copied verbatim from ~/.claude/skills/handoff-protocol/SKILL.md on 2026-09-03.
+No redactions were required: the file names no secret, host, key, or third
+party. This is the protocol that governed 437 numbered sessions on Zelbi.
+-->
+
+---
+name: handoff-protocol
+description: Two-stage session handoff process. Trigger when the user says "handoff" or when message count hits 20. At message 15 warn about wrapping up, at message 18 offer handoff. NEVER combine stages. NEVER skip waits.
+---
+
+# Session Handoff Protocol
+
+Clean session transitions with zero context loss. Previous sessions ended abruptly, losing critical values, dimensions, and next steps. This skill prevents that.
+
+**RULE: Two stages, two pauses. Never combine. Never skip waits.**
+
+---
+
+## When To Trigger
+
+| Trigger | Action |
+|---------|--------|
+| User says "handoff" | Begin Stage 1 |
+| Message count hits 15 | Mention wrapping up soon |
+| Message count hits 18 | Offer to start handoff |
+| Message count hits 20 | Snapshot current position across all tools, then begin handoff |
+
+---
+
+## Before You Start — Closeout Checks
+
+Run these checks BEFORE writing the handoff block. Incorporate any flags into the block.
+
+1. Verify commit hashes for everything shipped this session
+2. Identify the safe restore point (last known-good commit)
+3. Collect any specific values that must carry over (pixel dimensions, field names, config values)
+4. Check for unresolved bugs that need "BUG FIX:" label
+5. Assess current state (what's working, what's pending)
+6. If mid-task: snapshot tool states — what's open in Cursor, what was last run in Claude Code/Terminal, what was being discussed in chat
+7. Run git status and git log --oneline -3 mentally or ask Nick to run them
+
+If any of these are unclear, gather the info before writing the handoff block.
+
+---
+
+## Stage 1 — Chat Handoff Block (end of old session)
+
+Provide a **plain text block** for Nick to paste into a **new claude.ai chat**.
+
+**CRITICAL: Plain text only. No bash commands. No executable code. Deliver in a code block with copy button.**
+
+Say: *"Here's the block to paste into your new claude.ai chat:"*
+
+Structure:
+
+    NEW SESSION HANDOFF
+    COMPLETED:
+    - [Item 1 — commit abc1234]
+    - [Item 2 — commit def5678]
+    (or: "No commits this session")
+
+    SAFE RESTORE: commit [hash] ([description of what's known working])
+
+    CURRENT STATE:
+    - [What's working]
+    - [What's pending]
+
+    DO NOT REVISIT:
+    - [Topic 1 — settled, do not re-discuss]
+    - [Topic 2 — decided, do not re-research]
+
+    NEXT TASK: [Specific next action with exact values]
+
+    KEY FILES:
+    - [file path 1]
+    - [file path 2]
+
+    VALUES TO PRESERVE:
+    - [Specific dimensions, e.g., "sidebar width: 96px"]
+    - [Field names, e.g., "API returns action_type not sender"]
+    - [Config values, e.g., "PORT=5000"]
+    (or: "No carried values")
+
+    CONSTRAINTS:
+    - [e.g., "Audit first, fix second."]
+    - [e.g., "Do not use HEREDOC for files with nested markdown code blocks."]
+
+    TASK IN PROGRESS (include if mid-task at handoff time):
+    - Task: [what you're doing]
+    - Current step: [e.g., "Step 4 of 7-phase build — CSS block"]
+    - Tool states:
+      - Claude chat: [what was being planned/discussed]
+      - Cursor: [file open, mode, what was being edited/debugged, uncommitted changes]
+      - Claude Code: [last command run, any pending script or automation]
+      - Terminal: [last command, working directory, any running processes]
+    - Completed so far: [what's done within this task across all tools]
+    - Next immediate action: [exact next step — which tool, which file, which command]
+    - In-flight state: [uncommitted changes, partial edits, temp values, half-written functions]
+
+    STALE WARNING: Re-read any files before editing — previous session's view output is outdated.
+
+**Rules for this block:**
+- Exact commit hashes, not "the last commit"
+- Exact pixel values, not "make it wider"
+- Exact field names, not "the API fields"
+- Unresolved bugs get "BUG FIX:" prefix
+- DO NOT REVISIT items are closed — next session must not re-research them
+- NEVER include bash commands or executable code
+
+End with:
+
+> **STAGE 1 COMPLETE. Copy that block and paste into a new claude.ai chat. Ready for Stage 2?**
+
+**STOP. WAIT for user confirmation before proceeding.**
+
+---
+
+## Stage 2 — Terminal Closeout (Claude Code)
+
+Provide instructions for Claude Code terminal. This is the final message — no questions, no waits after this.
+
+Say: *"Paste this into Claude Code terminal:"*
+
+**Two tasks:**
+
+1. **Write session note to Obsidian**
+
+   Path: /Users/nickbroyzer/Documents/Obsidian/MyVault/<project>/Session-YYYY-MM-DD.md
+
+   Content: date, what was completed, current state, unresolved issues, next steps with specific values.
+
+2. **Run status checks**
+
+   git status && git log --oneline -3
+
+End with:
+
+> **You're set.**
+
+Nothing else. Session is closed.
+
+---
+
+## Cursor Prompt — Generated by the NEW Session
+
+Stage 2 from the old design is retired. The Cursor prompt is now generated at the **beginning of the next session**, not the end of the old one. The new session has the handoff block as context and generates a more accurate Cursor prompt.
+
+When a new session starts with a handoff block, and Nick asks for a Cursor prompt, generate one with this structure:
+
+    CONTEXT: [One sentence — what project, what phase]
+    JUST COMPLETED: [What was done last session, with commit hash]
+    CURRENT STATE: [What's working, what files were touched]
+    YOUR TASK: [Specific instruction for what to build/fix next]
+    KEY FILES: [List the 2-4 files Cursor should read first]
+    CONSTRAINTS: [Any values, dimensions, field names, or rules to follow]
+    Read the listed files before making any changes.
+
+Rules for this block:
+- Keep it short — Cursor reads the codebase, it just needs direction
+- Always include the commit hash
+- Always list the key files
+- Always end with "Read the listed files before making any changes"
+- NEVER include inline code — reference by file path and line numbers only
+
+---
+
+## Rules
+
+1. **NEVER combine stages.** Each stage is a separate message with a pause between.
+2. **NEVER skip waits.** User must confirm before proceeding to next stage.
+3. **NEVER mix formats.** Stage 1 = plain text for claude.ai chat. Stage 2 = instructions for Claude Code terminal.
+4. **NEVER use vague references.** Exact commits, exact pixels, exact field names.
+5. **NEVER forget bug labels.** Unresolved bugs get "BUG FIX:" prefix.
+6. **NEVER ask questions in Stage 2.** Deliver and close.
+7. **NEVER include bash in Stage 1.** It's a chat context block, not executable code.
+8. **NEVER skip the stale warning.** Previous session's file views are always outdated.
+
+---
+
+## Project Reference
+
+- Obsidian path: /Users/nickbroyzer/Documents/Obsidian/MyVault/<project>/
+- Session note format: Session-YYYY-MM-DD.md
+- Repos: github.com/nickbroyzer/aria-assistant, command-center-v7
