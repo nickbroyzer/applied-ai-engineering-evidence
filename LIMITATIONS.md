@@ -112,7 +112,7 @@ neither is any suggestion the assistants were incidental.
 
 ## Limitations of this repository as evidence
 
-- **It is curated.** 45 of 406 decision records, selected by me by theme. The
+- **It is curated.** 44 of 406 decision records, selected by me by theme. The
   selection and its reasons are in [`MANIFEST.md`](MANIFEST.md) for review.
 - **Sanitised.** Tuned constants, detection patterns and the real policy corpus
   are withheld. Every removal is itemised in [`MANIFEST.md`](MANIFEST.md) with

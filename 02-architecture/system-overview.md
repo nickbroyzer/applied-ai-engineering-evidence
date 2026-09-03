@@ -83,6 +83,11 @@ no embeddings and no external API. Extracted and runnable at
 them) driving six job modules. Both counts are given because the two counting
 methods differ.
 
+**Deployment and object storage.** The API and both cron runners are deployed
+on Railway; user images go to a Cloudflare R2 bucket, with the account,
+key-pair, bucket and public base URL all required settings on the backend
+config. No Cloudflare Workers or Pages are used by this system.
+
 **Observability.** Error reporting wired into the API and both cron runners,
 a no-op without a DSN, and skipped entirely under pytest so a local test run
 never reports its own deliberate failures.
@@ -108,6 +113,25 @@ engines preserving historical-date integrity for people and payroll records.
 That system is where streaming, model-per-task selection, and OAuth-heavy
 integration work live. Zelbi's AI surface is deliberately much narrower, and
 [`ai-boundary.md`](ai-boundary.md) says exactly what it does and does not do.
+
+## Other systems, named not published
+
+Three further systems of mine are named on the resume and are **separate private
+repositories**; no code from any of them appears here.
+
+- **Command Center v7** — a Flask and PostgreSQL multi-repo internal dev
+  dashboard, in production two days after its first commit. Its project rule
+  file is published at
+  [`../tooling/rules-registry/command-center-v7-rules.md`](../tooling/rules-registry/command-center-v7-rules.md);
+  the application itself is not.
+- **voice-bridge** — a Twilio-to-Gemini-Live WebSocket bridge with real-time
+  audio resampling. An exploration, paused, and named as one.
+- **ClawDeck** — a Stream Deck plugin driven by Claude Code lifecycle hooks. It
+  appears here only as the hook command lines it is invoked from, inside
+  [`../tooling/rules-registry/RULES-REGISTRY.md`](../tooling/rules-registry/RULES-REGISTRY.md).
+
+They are listed so that a claim resting on them can be seen to rest on
+description rather than on published code.
 
 ## What is absent, and named
 

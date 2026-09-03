@@ -28,6 +28,29 @@ back to a source document on request.
 | **S2c** — 751 passing backend tests, clean checkout | [`code/`](code/) (all subfolders) | the suite itself | — | [pytest-summary](verification/pytest-summary-2026-09-03.txt) · `751 passed`, exit 0, network blocked |
 | **S3** — twelve years pre-software | — (not a code claim) | — | — | Fact-ID E-016 |
 
+## Non-code claims (sourced outside this repository)
+
+These rows are here so the reverse check is honest: nothing below is proven by
+anything in this repository, and none of it should be read as if it were.
+
+| Claim | Source | Note |
+|---|---|---|
+| **S3** — twelve years in regulated, transaction-heavy operations before software | E-016 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Herbella LLC/Inc. — Facilities Operations & Capital Projects Owner, Seattle area, 2013 – Dec 2025; led $1M+ capital construction projects (HVAC, electrical, mechanical, structural) | E-005a | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Renovated and optimised five controlled-environment facilities, ~25% efficiency improvement | K-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Managed vendors, contracts, permitting, inspections and regulatory compliance; delivered on time and on budget at 98%+ facility uptime | K-009 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Bank of America / Wells Fargo Home Mortgage — Sr. Mortgage Officer/Consultant, 2009 – 2014; managed $20M+ mortgage portfolios across multiple locations | E-007a | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Improved workflow efficiency ~20% through reporting and process optimisation; built pipeline, cost and CSAT dashboards | E-007b | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Exceeded production and compliance targets — top ~10% funding production, >98% client satisfaction; mentored juniors on risk and compliance | K-003 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| United Financing LLC — Founder / Principal, Bellevue WA, 2007 – 2009; founded and led a licensed mortgage firm with multi-million-dollar transaction volume | E-008 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Built and managed a team of ~15; oversaw financial, contractual and regulatory operations | E-008 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Implemented CRM and document workflows that reduced processing cost | K-005 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Education | ED-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+
+**One gap, stated rather than papered over.** Three United Financing claims
+carry two Fact-IDs between them: `E-008` covers the role and the team, `K-005`
+the workflow result. No third ID was supplied and none was invented.
+
 ## Zelbi — bullet 1: architecture and scale
 
 | Claim | Proven at | Test | Decision | Verification |
@@ -55,7 +78,7 @@ back to a source document on request.
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
-| Tier-aware policy retrieval-and-refusal system | [`ai-boundary.md`](02-architecture/ai-boundary.md) · **runnable**: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) | 6 files | [D213](03-decisions/ai/D213.md) | [runnable README](runnable/knowledge-eval/README.md) — `113 passed` |
+| Tier-aware policy retrieval-and-refusal system | [`ai-boundary.md`](02-architecture/ai-boundary.md) · **runnable**: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) | 6 files | D213 (withheld — [INDEX](03-decisions/INDEX.md), [MANIFEST](MANIFEST.md) §1.6) | [runnable README](runnable/knowledge-eval/README.md) — `113 passed` |
 | PostgreSQL full-text search | [`code/knowledge/retrieval.py`](code/knowledge/retrieval.py) | [`test_knowledge_retrieval.py`](code/knowledge/test_knowledge_retrieval.py) | — | Fact-ID R-001 |
 | Filter-first SQL (visibility is a `WHERE` clause, not a post-filter) | [`ai-boundary.md`](02-architecture/ai-boundary.md) | [`test_knowledge_retrieval.py`](code/knowledge/test_knowledge_retrieval.py) | — | R-001, R-003 |
 | Structural leak containment | [`data-and-migrations.md`](02-architecture/data-and-migrations.md) (check constraints) | [`test_knowledge_models.py`](code/knowledge/test_knowledge_models.py), [`test_knowledge_ingestion.py`](code/knowledge/test_knowledge_ingestion.py) | — | R-002, R-003 |
@@ -114,13 +137,13 @@ back to a source document on request.
 
 ## Project — AI delivery governance and developer tooling
 
-| Claim | Proven at | Test | Decision | Verification |
-|---|---|---|---|---|
-| Nine custom subagents on top of an installed framework | [`tooling/agents/`](tooling/agents/) — 9 files | — | — | Fact-ID N-003a (24 definitions: 15 framework, 9 mine) |
-| Runtime enforcement hooks — git-push block, JS syntax, prompt format, session lifecycle, decision ownership, brevity, plain English | [`05-process/enforcement-hooks.md`](05-process/enforcement-hooks.md) · [`tooling/hooks/`](tooling/hooks/) — 12 files | [`tooling/hooks/test_conduct_lesson_parser.py`](tooling/hooks/test_conduct_lesson_parser.py) | — | N-003b |
-| Unit-tested rule parser | [`tooling/hooks/conduct_lesson_parser.py`](tooling/hooks/conduct_lesson_parser.py) | its own test | — | N-003b |
-| Versioned cross-tool rules registry | [`tooling/rules-registry/`](tooling/rules-registry/) · [`05-process/behavioral-rulebook.md`](05-process/behavioral-rulebook.md) | — | — | N-003c |
-| Flask + PostgreSQL multi-repo dev dashboard, in production two days after first commit; voice bridge (exploration, paused); Stream Deck plugin on Claude Code lifecycle hooks | — (described only; no code published) | — | — | N-004, N-005, AI-011, AI-012 |
+| Claim | Proven at | Test | Decision | Verification | Note |
+|---|---|---|---|---|---|
+| Nine custom subagents on top of an installed framework | [`tooling/agents/`](tooling/agents/) — 9 files | — | — | Fact-ID N-003a (24 definitions: 15 framework, 9 mine) | — |
+| Runtime enforcement hooks — git-push block, JS syntax, prompt format, session lifecycle, decision ownership, brevity, plain English | [`05-process/enforcement-hooks.md`](05-process/enforcement-hooks.md) · [`tooling/hooks/`](tooling/hooks/) — 12 files | [`tooling/hooks/test_conduct_lesson_parser.py`](tooling/hooks/test_conduct_lesson_parser.py) | — | N-003b | — |
+| Unit-tested rule parser | [`tooling/hooks/conduct_lesson_parser.py`](tooling/hooks/conduct_lesson_parser.py) | its own test | — | N-003b | — |
+| Versioned cross-tool rules registry | [`tooling/rules-registry/`](tooling/rules-registry/) · [`05-process/behavioral-rulebook.md`](05-process/behavioral-rulebook.md) | — | — | N-003c | — |
+| Flask + PostgreSQL multi-repo dev dashboard, in production two days after first commit; voice bridge (exploration, paused); Stream Deck plugin on Claude Code lifecycle hooks | described only — [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §other systems | — | — | N-004, N-005, AI-011, AI-012 | Command Center, voice-bridge and ClawDeck are separate private repositories; not published here. |
 
 ## Skills section
 
@@ -133,6 +156,27 @@ back to a source document on request.
 | Scam detection, message guards, dispute/refund workflows, reputation and strike models, coordinate obfuscation, per-route rate limiting | [`01-product-logic/`](01-product-logic/), [`code/trust/`](code/trust/), [`code/message_guard/`](code/message_guard/), [`code/coordinate_privacy/`](code/coordinate_privacy/), [`code/database/rate_limit.py`](code/database/rate_limit.py) |
 | SQLAlchemy, Alembic; Stripe authorization/capture, webhook signature verification, idempotency | [`02-architecture/data-and-migrations.md`](02-architecture/data-and-migrations.md), [`02-architecture/money-path.md`](02-architecture/money-path.md) |
 | Sentry, pytest, scheduled jobs | [`code/database/observability.py`](code/database/observability.py), [`code/jobs/`](code/jobs/), [`verification/`](verification/) |
+| Railway (deployment platform) | [`code/jobs/`](code/jobs/) — the cron runners it schedules · [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §the pieces |
+| Apple Pay | [`02-architecture/money-path.md`](02-architecture/money-path.md) §the client surface — payment-sheet configuration, client-side and not exercised by the backend suite |
+| PostGIS | [`02-architecture/data-and-migrations.md`](02-architecture/data-and-migrations.md) |
+| SQLite | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §second system — **described, not published.** Not used by Zelbi: [`runnable/knowledge-eval/conftest.py`](runnable/knowledge-eval/conftest.py) names it only as the engine the containment tests refuse to run on |
+| Supabase Auth, Supabase RLS | [`02-architecture/data-and-migrations.md`](02-architecture/data-and-migrations.md) · [`LIMITATIONS.md`](LIMITATIONS.md) — RLS is unversioned dashboard state, and is claimed only as enabled |
+| JavaScript | [`code/mobile/`](code/mobile/) — the client is TypeScript, which compiles to it; no plain-JavaScript source is published |
+| Cloudflare R2 | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §the pieces |
+| Cloudflare Pages / Workers | — **not evidenced here.** Neither is used by Zelbi; see [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §the pieces |
+| Doppler (secrets manager) | [`04-troubleshooting/05-location-scheme-reversal.md`](04-troubleshooting/05-location-scheme-reversal.md) — referenced there as "the secrets manager", unnamed; no file in [`05-process/`](05-process/) names the product |
+| Git, GitHub | [`05-process/enforcement-hooks.md`](05-process/enforcement-hooks.md) (the git-push blocker) · [`05-process/handoff-protocol.md`](05-process/handoff-protocol.md) |
+| MCP | [`tooling/README.md`](tooling/README.md) — servers are configured in the Claude Code environment, not in any file here |
+| Cursor rules and commands | [`tooling/rules-registry/tools-cursor.md`](tooling/rules-registry/tools-cursor.md) · [`tooling/README.md`](tooling/README.md) · [`MANIFEST.md`](MANIFEST.md) §1.7 |
+| PII and data-exposure audit | [`02-architecture/tradeoffs.md`](02-architecture/tradeoffs.md) §legal — the audit documents themselves are deliberately excluded |
+| Flask; Frappe / ERPNext; Gmail Pub/Sub; Twilio; Retell AI; Google OAuth, Calendar and Places; OpenAI Whisper | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §second system — **described, not published** |
+| Gemini Live API | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §other systems — **exploration** |
+
+
+Every tool named in the résumé's skills section now carries a pointer. Where the
+pointer is to a description rather than to code, the row says so; where nothing
+in this repository evidences the tool, the row says that instead of reaching for
+the nearest plausible file.
 
 ---
 

@@ -11,6 +11,13 @@ across six payment files plus a money subset of the claims tests — stated as
 at pickup, by outcome and timing. **Refund** on an upheld dispute. A **scheduled
 sweep** reconciles anything the webhooks did not.
 
+**The client surface.** Checkout is a first-party screen ([`D305`](../03-decisions/money/D305.md)),
+with the Stripe React Native SDK's payment sheet behind it. The sheet is
+initialised with an Apple Pay merchant identifier and a US merchant country, so
+Apple Pay is an offered payment method inside our own screen rather than a
+wallet takeover of it. The wallet configuration is client-side and is not
+exercised by the backend suite.
+
 The reason it is a hold and not a charge is in
 [`../01-product-logic/marketplace-state-machine.md`](../01-product-logic/marketplace-state-machine.md):
 at the moment of claiming, the event that decides whether money should move has

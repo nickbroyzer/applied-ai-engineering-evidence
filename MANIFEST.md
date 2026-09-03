@@ -7,7 +7,7 @@ Compiled by hashing each output file against its candidate sources, so
 unchanged". Anything not byte-identical is listed as authored or modified and
 has an entry in the removals section.
 
-- **228 files** · 118 verbatim · 110 authored or modified
+- **227 files** · 118 verbatim · 109 authored or modified
 - Source commit for all Zelbi material: `3413d028b5abd5163a820790c4fe8d9b0c82f922`
 - Compiled 2026-09-03
 
@@ -44,6 +44,13 @@ can see how rules compose and where enforcement happens.
 counts (`range(2)` followed by one more action) from which the strike threshold
 is inferable. Redacting them would gut the test's readability. Nick's call
 whether to withhold the file, rewrite those loops, or accept the inference.
+
+**Ruling 2026-09-03 (Nick):** kept as is; the three-strike rule is stated on the
+resume and is user-visible product policy.
+
+The migration identifiers removed from `D182` and `D299` above, and the session
+plan path removed in §1.1, were not required by plan §5. Judgment call beyond
+plan §5, on the conservative side; recorded here.
 
 ### 1.3 Policy corpus
 
@@ -87,6 +94,7 @@ No reference appears anywhere in this repository. Concretely excluded:
 | `~/.claude/commands/` | Contains only `gsd`. |
 | `tooling/skills/learned/` (16 files) | Auto-generated queue stubs — a repeated prompt template plus a local transcript path. No content, and they leak local paths. |
 | `ai-rules/db-auto-detailing-rules.md` | That project is excluded from all recruiting material by Nick's own decision. |
+| `03-decisions/ai/D213.md` | Withheld after Gate 7 review: describes what is not screened at launch. |
 | `ai-rules/zelbi-rules.md.bak` | Backup file. |
 | Real user rows, seed data resembling real people | None copied. |
 
@@ -114,7 +122,7 @@ No reference appears anywhere in this repository. Concretely excluded:
 
 ---
 
-## 3. The 45 decision records — selection, with reasons
+## 3. The 44 decision records — selection, with reasons
 
 Selected from 406. Per-entry reasons for Nick's review at the gate.
 
@@ -163,14 +171,13 @@ Selected from 406. Per-entry reasons for Nick's review at the gate.
 | D322 | A blocked party keeps their receipt minus the address. Balancing safety against record-keeping. |
 | D323 | The HMAC re-key — the fix for D125, and the ruling behind the strongest write-up here. |
 
-### ai (6)
+### ai (5)
 
 | D | Why selected |
 |---|---|
 | D18 | Two options, A/B, user picks and edits — the ruling that puts a human between the model and the database. |
 | D87 | A recorded model failure mode (brand hallucination). The log naming what the model gets wrong. |
 | D122 | Category-conditional photo requirements — product logic constraining a model input. |
-| D213 | **No automated prohibited-items blocking** at launch; honor system plus reporting. A deliberate non-use of automation. |
 | D438 | Implements D122 through one voice. Shows a decision travelling from ruling to interface. |
 | D440 | Cached analysis still plays the beat — a small ruling that keeps a fast path from feeling broken. |
 
@@ -295,7 +302,6 @@ pattern, the company name, the owner's name, and the credential episode.
 | `INDEX.md` | authored for this repository | authored / modified |
 | `ai/D122.md` | authored for this repository | authored / modified |
 | `ai/D18.md` | authored for this repository | authored / modified |
-| `ai/D213.md` | authored for this repository | authored / modified |
 | `ai/D438.md` | authored for this repository | authored / modified |
 | `ai/D440.md` | authored for this repository | authored / modified |
 | `ai/D87.md` | authored for this repository | authored / modified |

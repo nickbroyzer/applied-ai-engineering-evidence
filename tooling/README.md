@@ -10,6 +10,10 @@ from Zelbi, and other people should be able to use it.
 | [`rules-registry/`](rules-registry/) | The cross-tool rules registry: one source of truth with tiers, hook bindings and revision dates, per-project rule files, two versions of the rule-fix blueprint, and a breakage log. |
 | [`skills/`](skills/) | The skills I authored, including the two-stage handoff protocol that ran 437 numbered sessions. |
 
+MCP servers are configured in the Claude Code environment rather than in any
+file in this repository, and the Cursor-facing rules are a single file,
+[`rules-registry/tools-cursor.md`](rules-registry/tools-cursor.md).
+
 ## Before you reuse these
 
 **Paths are machine-specific.** Several hooks and rule files contain absolute

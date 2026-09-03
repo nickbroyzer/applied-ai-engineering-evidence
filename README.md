@@ -22,7 +22,7 @@ produced it in [`verification/repo-metrics-2026-09-03.md`](verification/repo-met
 | **127** | active development days (147 calendar days) |
 | **751** | backend tests, collected and passed from a clean checkout with outbound network blocked at the socket layer — [verbatim run](verification/pytest-summary-2026-09-03.txt) |
 | **44** | Alembic migrations, single root |
-| **406** | numbered decisions in the log; 45 published here |
+| **406** | numbered decisions in the log; 44 published here |
 | **22 / 22** | golden evaluation cases, **0 leak failures** — and you can run it yourself: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) |
 
 ## The system
@@ -71,7 +71,7 @@ with no API key — because the system calls no model at all. Its README records
 what happened when I tried three times to make it leak.
 
 **If you want to know how I think**, [`03-decisions/INDEX.md`](03-decisions/INDEX.md)
-is 45 decisions as *question → ruling → what shipped*, including the ones that
+is 44 decisions as *question → ruling → what shipped*, including the ones that
 reversed earlier decisions and the ones that ruled against building something.
 
 ## What's here
@@ -80,7 +80,7 @@ reversed earlier decisions and the ones that ruled against building something.
 |---|---|
 | [`01-product-logic/`](01-product-logic/) | The claim state machine, a 22-row failure-state matrix, the trust and safety model, location privacy |
 | [`02-architecture/`](02-architecture/) | System overview, the AI boundary, data and migrations, the money path, and the trade-offs with what each one cost |
-| [`03-decisions/`](03-decisions/) | 45 decision records, verbatim, by theme — money, trust, privacy, ai, ops |
+| [`03-decisions/`](03-decisions/) | 44 decision records, verbatim, by theme — money, trust, privacy, ai, ops |
 | [`04-troubleshooting/`](04-troubleshooting/) | Five production write-ups: symptom → diagnosis → fix → test → commit. Plus excerpts from the lessons files |
 | [`05-process/`](05-process/) | The behavioural rulebook, the handoff protocol that ran 437 sessions, model routing, verification gates, and what each enforcement hook blocks |
 | [`code/`](code/) | Whole files with their tests: vision pipeline, knowledge system, payments, coordinate privacy, trust, message guard, database, jobs, mobile |

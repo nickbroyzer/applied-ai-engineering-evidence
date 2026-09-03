@@ -144,5 +144,5 @@ is nobody's job to remove.
 - **A separate trust-word raw counter has no writer and does not heal** — dead
   code, filed for deletion.
 - Prohibited-items enforcement is **honor-system plus reporting**
-  ([`D213`](../03-decisions/ai/D213.md)): no server-side list, no automated
+  (D213, withheld — [MANIFEST](../MANIFEST.md) §1.6): no server-side list, no automated
   blocking at launch.
