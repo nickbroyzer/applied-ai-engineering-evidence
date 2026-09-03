@@ -94,7 +94,7 @@ No reference appears anywhere in this repository. Concretely excluded:
 | `~/.claude/commands/` | Contains only `gsd`. |
 | `tooling/skills/learned/` (16 files) | Auto-generated queue stubs — a repeated prompt template plus a local transcript path. No content, and they leak local paths. |
 | `ai-rules/db-auto-detailing-rules.md` | That project is excluded from all recruiting material by Nick's own decision. |
-| `03-decisions/ai/D213.md` | Withheld after Gate 7 review: describes what is not screened at launch. |
+| `03-decisions/ai/D213.md` | Withheld after Gate 7 review: launch-time moderation posture. |
 | `ai-rules/zelbi-rules.md.bak` | Backup file. |
 | Real user rows, seed data resembling real people | None copied. |
 
