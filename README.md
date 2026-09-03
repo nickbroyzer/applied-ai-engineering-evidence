@@ -128,10 +128,9 @@ Every removal is itemised with file and line range in
 
 This is pre-launch software in active development. There is no CI at this
 commit; there are no mobile tests; the double-capture guards are read-then-write
-without row locks; arrival confirmation is client-reported. One résumé figure —
-"sixteen call sites" for block enforcement — **did not survive re-derivation**;
-I get 13, and [`LIMITATIONS.md`](LIMITATIONS.md) shows the command and flags it
-rather than repeating the number.
+without row locks; arrival confirmation is client-reported. An earlier résumé draft said "sixteen call sites" for block enforcement;
+re-derivation gives 13, the résumé now states no count, and
+[`LIMITATIONS.md`](LIMITATIONS.md) shows the command.
 
 I am the sole *human* code author of Zelbi. It was built with AI coding
 assistants under my direction; architecture, decisions, review and release

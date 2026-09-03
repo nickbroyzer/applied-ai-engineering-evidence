@@ -16,7 +16,7 @@ not mean continuously true, monitored, or true at any other commit.
 
 ## One figure that did not reproduce — flagged for review
 
-The résumé states that user blocking is **"enforced at sixteen call sites."**
+An earlier résumé draft stated that user blocking was **"enforced at sixteen call sites."** The current résumé states no count.
 
 Re-deriving it at the same commit, this is what I get:
 
@@ -35,8 +35,8 @@ messages, claims and the feed — is intact and is what the documents here
 describe. The **count** is not, and this repository uses 13 with the command
 above rather than repeating a figure it cannot re-derive.
 
-**This needs Nick's decision before the résumé goes out:** either the counting
-method that produced 16 gets recorded, or the line changes to 13.
+**Resolved 2026-09-03:** the résumé line now states no count; this repository
+uses 13 with the command above.
 
 Two other counts differ by method rather than being wrong, and both are stated
 with their method:
