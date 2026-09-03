@@ -64,7 +64,7 @@ Read as: **the question → the ruling → what shipped.**
 | [D18](ai/D18.md) | How does the model's output reach the user? | Two options, A/B, user picks and edits | The structured listing flow |
 | [D87](ai/D87.md) | The model hallucinates brands | Recorded as a known failure mode | The constraint work that followed |
 | [D122](ai/D122.md) | Do some categories need more photos? | Yes — enforced at launch for a named set | The photo gate |
-| D213 — withheld from the public repository (launch-time moderation posture); available on request. |
+| D213 — withheld from the public repository; available on request. |
 | [D438](ai/D438.md) | How is the photo gate voiced? | One voice, the camera pill — implements D122 | The capture screen |
 | [D440](ai/D440.md) | Cached analysis skips the beat? | No — it still plays | The AI screen timing |
 
@@ -97,9 +97,7 @@ trust, privacy, AI, and operations — with three further filters:
    here because a log that only records wins is a marketing document.
 3. **Rulings against building something are included deliberately** — D226
    (no per-message model), D207 (deferred, with the blocker named). Deciding not
-   to build is the harder half of the record. D213 was selected on this ground
-   and then withheld at the Gate 7 review; the withholding is itself recorded,
-   in [`../MANIFEST.md`](../MANIFEST.md) §1.6.
+   to build is the harder half of the record.
 
 Per-entry reasons for the full 44 are in [`../MANIFEST.md`](../MANIFEST.md) for
 review at the gate.

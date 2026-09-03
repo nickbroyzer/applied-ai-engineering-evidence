@@ -18,7 +18,7 @@ back to a source document on request.
 |---|---|---|
 | S1 | Ships production software end to end | — |
 | S2 | Sole human code author — 1,688 commits, 751 passing backend tests from a clean checkout | Z-001, Z-002, T-001 |
-| S3 | Twelve years in regulated, transaction-heavy operations before software | E-016 |
+| S3 | Twelve years in regulated, transaction-heavy operations before software | E-016, K-009 |
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
@@ -26,7 +26,7 @@ back to a source document on request.
 | **S2a** — 1,688 commits | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) | — | — | [repo-metrics](verification/repo-metrics-2026-09-03.md) · `git rev-list --count HEAD` → `1688` |
 | **S2b** — sole *human* code author, built with AI assistants under my direction | [`05-process/`](05-process/) (whole folder) | — | — | [repo-metrics](verification/repo-metrics-2026-09-03.md) · `git log --format=%an \| sort -u` → one author |
 | **S2c** — 751 passing backend tests, clean checkout | [`code/`](code/) (all subfolders) | the suite itself | — | [pytest-summary](verification/pytest-summary-2026-09-03.txt) · `751 passed`, exit 0, network blocked |
-| **S3** — twelve years pre-software | — (not a code claim) | — | — | Fact-ID E-016 |
+| **S3** — twelve years pre-software | — (not a code claim) | — | — | Fact-IDs E-016, K-009 |
 
 ## Non-code claims (sourced outside this repository)
 
@@ -35,21 +35,20 @@ anything in this repository, and none of it should be read as if it were.
 
 | Claim | Source | Note |
 |---|---|---|
-| **S3** — twelve years in regulated, transaction-heavy operations before software | E-016 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Herbella LLC/Inc. — Facilities Operations & Capital Projects Owner, Seattle area, 2013 – Dec 2025; led $1M+ capital construction projects (HVAC, electrical, mechanical, structural) | E-005a | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Renovated and optimised five controlled-environment facilities, ~25% efficiency improvement | K-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Managed vendors, contracts, permitting, inspections and regulatory compliance; delivered on time and on budget at 98%+ facility uptime | K-009 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Bank of America / Wells Fargo Home Mortgage — Sr. Mortgage Officer/Consultant, 2009 – 2014; managed $20M+ mortgage portfolios across multiple locations | E-007a | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Improved workflow efficiency ~20% through reporting and process optimisation; built pipeline, cost and CSAT dashboards | E-007b | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Exceeded production and compliance targets — top ~10% funding production, >98% client satisfaction; mentored juniors on risk and compliance | K-003 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| United Financing LLC — Founder / Principal, Bellevue WA, 2007 – 2009; founded and led a licensed mortgage firm with multi-million-dollar transaction volume | E-008 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Built and managed a team of ~15; oversaw financial, contractual and regulatory operations | E-008 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Implemented CRM and document workflows that reduced processing cost | K-005 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-| Education | ED-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
-
-**One gap, stated rather than papered over.** Three United Financing claims
-carry two Fact-IDs between them: `E-008` covers the role and the team, `K-005`
-the workflow result. No third ID was supplied and none was invented.
+| **S3** — "Twelve years in regulated, transaction-heavy operations before software" | E-016, K-009 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Herbella LLC — Founder · Head of Facility Design & Cultivation Operations — April 2013 – December 2025 | E-005a | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Designed, built, and operated five state-licensed controlled-environment agriculture facilities over twelve years in a volatile, consolidating industry." | K-001, K-009 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Led $1M+ per-site HVAC, electrical, mechanical, and structural capital projects; owned permitting, code compliance, and vendor and subcontractor negotiation." | K-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Improved operational efficiency ~25% across the facility portfolio." | K-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Wells Fargo Home Mortgage / Bank of America — Home Mortgage Consultant → Sr. Mortgage Consultant — March 2010 – May 2014 | E-007a, E-007b | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Managed a 900+ client portfolio and $20M+ funded volume in 2010." | K-003 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Ranked Top 10% nationally by funded volume (2010, 2012); 100% customer-satisfaction ratings 2010–2013." | K-003 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Coordinated underwriting, processing, and closing across three branches." | K-003 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| United Financing LLC — Founder / Mortgage Broker — January 2007 – March 2010 | E-008 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Founded and ran a state-licensed mortgage brokerage with a 15-person team; owned P&L and compliance." | E-008, K-005 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Implemented CRM automation that cut document-processing time 15%." | K-005 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| "Built lender and referral partnerships that grew revenue 30%." | K-005 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
+| Education: "Coursework toward Applied Science degree, programming track — Bellevue College (formerly Bellevue Community College)" | ED-001 | Employment/education record; not a code claim. Private fact pack; verifiable on request. |
 
 ## Zelbi — bullet 1: architecture and scale
 
@@ -78,7 +77,7 @@ the workflow result. No third ID was supplied and none was invented.
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
-| Tier-aware policy retrieval-and-refusal system | [`ai-boundary.md`](02-architecture/ai-boundary.md) · **runnable**: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) | 6 files | D213 (withheld — [INDEX](03-decisions/INDEX.md), [MANIFEST](MANIFEST.md) §1.6) | [runnable README](runnable/knowledge-eval/README.md) — `113 passed` |
+| Tier-aware policy retrieval-and-refusal system | [`ai-boundary.md`](02-architecture/ai-boundary.md) · **runnable**: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) | 6 files | — (governing decision withheld; see [INDEX](03-decisions/INDEX.md)) | [runnable README](runnable/knowledge-eval/README.md) — `113 passed` |
 | PostgreSQL full-text search | [`code/knowledge/retrieval.py`](code/knowledge/retrieval.py) | [`test_knowledge_retrieval.py`](code/knowledge/test_knowledge_retrieval.py) | — | Fact-ID R-001 |
 | Filter-first SQL (visibility is a `WHERE` clause, not a post-filter) | [`ai-boundary.md`](02-architecture/ai-boundary.md) | [`test_knowledge_retrieval.py`](code/knowledge/test_knowledge_retrieval.py) | — | R-001, R-003 |
 | Structural leak containment | [`data-and-migrations.md`](02-architecture/data-and-migrations.md) (check constraints) | [`test_knowledge_models.py`](code/knowledge/test_knowledge_models.py), [`test_knowledge_ingestion.py`](code/knowledge/test_knowledge_ingestion.py) | — | R-002, R-003 |
@@ -161,10 +160,10 @@ the workflow result. No third ID was supplied and none was invented.
 | PostGIS | [`02-architecture/data-and-migrations.md`](02-architecture/data-and-migrations.md) |
 | SQLite | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §second system — **described, not published.** Not used by Zelbi: [`runnable/knowledge-eval/conftest.py`](runnable/knowledge-eval/conftest.py) names it only as the engine the containment tests refuse to run on |
 | Supabase Auth, Supabase RLS | [`02-architecture/data-and-migrations.md`](02-architecture/data-and-migrations.md) · [`LIMITATIONS.md`](LIMITATIONS.md) — RLS is unversioned dashboard state, and is claimed only as enabled |
-| JavaScript | [`code/mobile/`](code/mobile/) — the client is TypeScript, which compiles to it; no plain-JavaScript source is published |
+| JavaScript | Used in the construction-company operations dashboard (single-page JS front end) and via TypeScript in [`code/mobile/`](code/mobile/). No plain-JavaScript source is published; see [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §second system |
 | Cloudflare R2 | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §the pieces |
-| Cloudflare Pages / Workers | **Pages:** the Zelbi repository's `web/` folder — the five legal paths at zelbi.ai are served from Cloudflare Pages, added in commit `d108873` (2026-09-01). Not published here: `web/` is outside the scope of this repository. **Workers:** not evidenced — none is used by Zelbi |
-| Doppler (secrets manager) | [`04-troubleshooting/05-location-scheme-reversal.md`](04-troubleshooting/05-location-scheme-reversal.md) — referenced there as "the secrets manager", unnamed; no file in [`05-process/`](05-process/) names the product |
+| Cloudflare Pages / Workers | **Pages:** Zelbi's legal pages are served from Cloudflare Pages out of the private repository's `web/` folder (commit `d108873`, 2026-09-01). Not published here; verifiable on request. **Workers:** not evidenced — none is used by Zelbi |
+| Doppler (secrets manager) | Secrets manager adopted 2026-07-30 (`doppler.yaml` in the private repository). Not published here; verifiable on request |
 | Git, GitHub | [`05-process/enforcement-hooks.md`](05-process/enforcement-hooks.md) (the git-push blocker) · [`05-process/handoff-protocol.md`](05-process/handoff-protocol.md) |
 | MCP | [`tooling/README.md`](tooling/README.md) — servers are configured in the Claude Code environment, not in any file here |
 | Cursor rules and commands | [`tooling/rules-registry/tools-cursor.md`](tooling/rules-registry/tools-cursor.md) · [`tooling/README.md`](tooling/README.md) · [`MANIFEST.md`](MANIFEST.md) §1.7 |
