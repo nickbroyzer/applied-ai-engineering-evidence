@@ -86,7 +86,9 @@ methods differ.
 **Deployment and object storage.** The API and both cron runners are deployed
 on Railway; user images go to a Cloudflare R2 bucket, with the account,
 key-pair, bucket and public base URL all required settings on the backend
-config. No Cloudflare Workers or Pages are used by this system.
+config. The marketing site and the five legal paths at zelbi.ai are served
+separately from Cloudflare Pages, out of a `web/` folder in the private
+repository that is not published here. No Cloudflare Workers are used.
 
 **Observability.** Error reporting wired into the API and both cron runners,
 a no-op without a DSN, and skipped entirely under pytest so a local test run

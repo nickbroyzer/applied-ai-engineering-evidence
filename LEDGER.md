@@ -163,7 +163,7 @@ the workflow result. No third ID was supplied and none was invented.
 | Supabase Auth, Supabase RLS | [`02-architecture/data-and-migrations.md`](02-architecture/data-and-migrations.md) · [`LIMITATIONS.md`](LIMITATIONS.md) — RLS is unversioned dashboard state, and is claimed only as enabled |
 | JavaScript | [`code/mobile/`](code/mobile/) — the client is TypeScript, which compiles to it; no plain-JavaScript source is published |
 | Cloudflare R2 | [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §the pieces |
-| Cloudflare Pages / Workers | — **not evidenced here.** Neither is used by Zelbi; see [`02-architecture/system-overview.md`](02-architecture/system-overview.md) §the pieces |
+| Cloudflare Pages / Workers | **Pages:** the Zelbi repository's `web/` folder — the five legal paths at zelbi.ai are served from Cloudflare Pages, added in commit `d108873` (2026-09-01). Not published here: `web/` is outside the scope of this repository. **Workers:** not evidenced — none is used by Zelbi |
 | Doppler (secrets manager) | [`04-troubleshooting/05-location-scheme-reversal.md`](04-troubleshooting/05-location-scheme-reversal.md) — referenced there as "the secrets manager", unnamed; no file in [`05-process/`](05-process/) names the product |
 | Git, GitHub | [`05-process/enforcement-hooks.md`](05-process/enforcement-hooks.md) (the git-push blocker) · [`05-process/handoff-protocol.md`](05-process/handoff-protocol.md) |
 | MCP | [`tooling/README.md`](tooling/README.md) — servers are configured in the Claude Code environment, not in any file here |

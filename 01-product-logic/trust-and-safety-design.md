@@ -143,6 +143,5 @@ is nobody's job to remove.
 - **No test proves a non-admin receives 403** on the dispute-resolution endpoint.
 - **A separate trust-word raw counter has no writer and does not heal** — dead
   code, filed for deletion.
-- Prohibited-items enforcement is **honor-system plus reporting**
-  (D213, withheld — [MANIFEST](../MANIFEST.md) §1.6): no server-side list, no automated
-  blocking at launch.
+- Prohibited-item handling: withheld from the public repository; available on
+  request.
