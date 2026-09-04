@@ -138,6 +138,6 @@ authority stayed with me. Both halves of that sentence matter.
 
 ## Licence
 
-Zelbi material: all rights reserved. The [`tooling/`](tooling/) bundle is MIT —
-it is my own work and other people should be able to use it. See
+All rights reserved — Zelbi material and the [`tooling/`](tooling/) bundle alike.
+Published for review by prospective employers; not licensed for reuse. See
 [`LICENSE`](LICENSE).
