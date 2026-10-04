@@ -128,7 +128,8 @@ completion-photo and message-image paths are not ownership-checked. See
 [`01-product-logic/private-photo-access.md`](01-product-logic/private-photo-access.md).
 
 **Credits.** Only giveaway and invite credits wait for Apple DeviceCheck;
-referral credits do not. DeviceCheck is iOS-only and per device, not per person.
+referral credits do not, and D544's one-iPhone-per-referred-friend rule is not
+built. DeviceCheck is iOS-only and per device, not per person.
 See [`01-product-logic/device-check-credits.md`](01-product-logic/device-check-credits.md).
 
 **Message guard.** Detection is built; enforcement is partial. Rule 4 (repeated

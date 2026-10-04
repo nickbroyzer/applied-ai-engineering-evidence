@@ -76,6 +76,10 @@ the repository.
 
 - **Referral credits are not gated.** Only `giveaway` and `invite` credits wait
   for the check; a `referral` credit spends without it (`claims.py:439`).
+  D544 (3) also says one iPhone counts as only one referred friend, checked
+  with DeviceCheck. The referral award path at this commit has no device
+  condition among its skip reasons (`referral_service.py:416-431`, not
+  published), so that part is ruled but not built.
 - **iOS only, and not in the simulator.** `DCDevice` is unsupported there; the
   app reports `unsupported` and the credit simply stays unspendable on that
   device.
