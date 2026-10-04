@@ -119,9 +119,11 @@ leads, invoices, jobs and payroll on one surface: a Claude classifier triages
 inbound mail through a push-subscription webhook into a priority queue; a voice
 receptionist over SIP puts live call transcripts and sentiment in the same
 inbox; SMS intake and a public lead-capture chat that streams model replies and
-books appointments round it out. A follow-on repository migrated the company
-onto ERPNext — a custom Frappe app with three tested doctypes and two migration
-engines preserving historical-date integrity for people and payroll records.
+books appointments round it out. Vendor invoices that arrive by email wait in
+an approval queue and post to job costs only when someone approves them. A
+follow-on repository migrated the company onto ERPNext — a custom Frappe app
+with three tested doctypes and two migration engines preserving historical-date
+integrity for people and payroll records.
 
 That system is where streaming, model-per-task selection, and OAuth-heavy
 integration work live. Zelbi's AI surface is deliberately much narrower, and
