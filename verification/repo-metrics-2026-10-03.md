@@ -248,7 +248,8 @@ referenced). This repository says "sessions numbered through 473".
 | Cron runners / job modules | 2 / 8 | `run_daily_jobs.py`, `run_frequent_jobs.py`. `b6ced95` removed `run_recommendation_scan.py` and `run_saved_deadline_scan.py`; both jobs run inside `run_daily_jobs.py` (lines 19–20) | A-002 |
 | Alembic revisions | 61 | `backend/migrations/versions/*.py` | A-003 |
 | Backend test files | 91 | `test_*.py` only | T-003 |
-| Backend `def test_` functions | 1,217 | Collected and passed counts: see `pytest-summary-2026-10-03.txt` | T-001 |
+| Backend `def test_` functions | 1,217 | — | T-001 |
+| Backend tests collected & passed | **1,265** | See `pytest-summary-2026-10-03.txt`: 1,265 passed, exit 0, clean checkout, network blocked. Always "1,265 **backend** tests" — mobile and web have none | T-001, T-004 |
 | RLS statements in migrations | 0 | Unchanged: row-level security is dashboard state | A-004 |
 | CI workflow | absent | No `.github/` directory | A-012 |
 | Row locks | 2 call sites | `users.py:520` (DeviceCheck credit), `referral_service.py:504` (referral code). **None on the capture path** — the double-capture guards are still read-then-write | — |
@@ -261,15 +262,15 @@ referenced). This repository says "sessions numbered through 473".
 ## Component test counts
 
 `def test_` counts with `grep -cE '^(async )?def test_'`. pytest's collected
-count is higher wherever a test is parametrized; that column is filled from the
-recorded pytest run.
+count (`pytest --collect-only -q <files> | tail -1`, same environment as the
+recorded run) is higher wherever a test is parametrized.
 
 | Component | `def test_` | Collected | Files |
 |---|---|---|---|
-| AI vision pipeline | 10 | see pytest summary | `test_ai.py` 1, `test_ai_service.py` 4, `test_ai_object_key_ownership.py` 2, `test_ai_soft_item.py` 3. Was 21 at `3413d028`: `b6ced95` deleted the readability endpoint and its tests |
-| Knowledge system | 109 | see pytest summary | `test_knowledge_{answer,ask_endpoint,eval_seed,ingestion,log_retention,models,retrieval}.py` (20+20+15+19+1+21+13). **None exercises the embedding, rank-fusion or daily-cap code** |
-| Coordinate privacy | 10 | see pytest summary | `test_coordinate_privacy.py` |
-| Payment path | 92 / 118 | see pytest summary | The six files published in September: `test_stripe_service.py` 35, `test_stripe_webhooks.py` 20, `test_pending_payment_sweeper.py` 8, `test_post_window_sweeper.py` 22, `test_stripe_customer.py` 4, `test_stripe_billing.py` 3 = 92. Plus `test_claim_deferred_intent.py` 11, `test_claim_fees.py` 10, `test_curbside_sweeper.py` 5 = 118 |
-| Admin API and Sentry watcher | 122 | see pytest summary | `test_admin_{actions,authorization,claims,disputes,flags,health,listings,money,notes}.py` (15+2+11+19+13+4+16+13+8) + `test_watcher.py` 21 |
-| Trust and safety | 199 | see pytest summary | `test_trust_service.py` 14, `test_strike.py` 10, `test_dispute_suspension.py` 8, `test_blocks.py` 35, `test_scam_detection.py` 48, `test_scam_wiring.py` 21, `test_credits_devicecheck.py` 23, `test_devicecheck_service.py` 17, `test_credits_giveaway.py` 23 |
-| Private photo access | 26 | see pytest summary | `test_signed_photo_reads.py` 21, `test_r2_delete.py` 5 |
+| AI vision pipeline | 10 | 10 | `test_ai.py` 1, `test_ai_service.py` 4, `test_ai_object_key_ownership.py` 2, `test_ai_soft_item.py` 3. Was 21 at `3413d028`: `b6ced95` deleted the readability endpoint and its tests |
+| Knowledge system | 109 | 114 | `test_knowledge_{answer,ask_endpoint,eval_seed,ingestion,log_retention,models,retrieval}.py` (20+20+15+19+1+21+13). **None exercises the embedding, rank-fusion or daily-cap code** |
+| Coordinate privacy | 10 | 15 | `test_coordinate_privacy.py` |
+| Payment path | 92 / 118 | 96 / 122 | The six files published in September: `test_stripe_service.py` 35, `test_stripe_webhooks.py` 20, `test_pending_payment_sweeper.py` 8, `test_post_window_sweeper.py` 22, `test_stripe_customer.py` 4, `test_stripe_billing.py` 3 = 92. Plus `test_claim_deferred_intent.py` 11, `test_claim_fees.py` 10, `test_curbside_sweeper.py` 5 = 118 |
+| Admin API and Sentry watcher | 122 | 124 | `test_admin_{actions,authorization,claims,disputes,flags,health,listings,money,notes}.py` (15+2+11+19+13+4+16+13+8) + `test_watcher.py` 21 |
+| Trust and safety | 199 | 219 | `test_trust_service.py` 14, `test_strike.py` 10, `test_dispute_suspension.py` 8, `test_blocks.py` 35, `test_scam_detection.py` 48, `test_scam_wiring.py` 21, `test_credits_devicecheck.py` 23, `test_devicecheck_service.py` 17, `test_credits_giveaway.py` 23 |
+| Private photo access | 26 | 26 | `test_signed_photo_reads.py` 21, `test_r2_delete.py` 5 |
