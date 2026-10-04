@@ -26,14 +26,17 @@ identical results. Embeddings are Phase 3+ work and are not consulted.
 """
 from __future__ import annotations
 
+import dataclasses
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from sqlalchemy import case, func, literal, or_
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.knowledge.embeddings import EMBEDDING_MODEL, EmbeddingUnavailable, cosine, embed_texts
 from app.services.knowledge.validation import DENYLISTED_DECISIONS, SafetyViolation
 
 INTERNAL_DIR = "docs/policy/internal"
@@ -41,6 +44,28 @@ DEFAULT_TOP_K = 5
 # §9.6 — one long doc must not crowd out a second relevant doc.
 MAX_CHUNKS_PER_DOC = 3
 SNIPPET_CHARS = 240
+# §9: vector search runs beside text search; the two ranked lists are fused by
+# reciprocal rank. The floor is the meaning-match strength an answer must reach
+# when text search found nothing exact (calibrate with the eval harness).
+VECTOR_TOP_N = 8
+RRF_K = 60
+# Calibrated Session 463: real help questions that rely on meaning alone scored
+# 0.48 and up; off-topic ones topped out at 0.40 ("how do I bake bread").
+VECTOR_SIMILARITY_FLOOR = 0.45
+# D538: at most this many help questions a day (UTC) are sent to Voyage; past it,
+# search falls back to text only, which costs nothing. Counted from the query log,
+# so restarts and multiple servers cannot reset it.
+VOYAGE_DAILY_CEILING = 1000
+
+
+def voyage_calls_today(session: Session) -> int:
+    start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (
+        session.query(func.count(models.KnowledgeQueryLog.id))
+        .filter(models.KnowledgeQueryLog.created_at >= start)
+        .scalar()
+        or 0
+    )
 
 _TOKEN_RE = re.compile(r"[a-z0-9$@.']+")
 _STOPWORDS = frozenset(
@@ -62,8 +87,9 @@ class RetrievedChunk:
     source_decisions: tuple[str, ...]
     rag_index: str
     score: float
-    strategy: str  # 'fts' | 'keyword'
+    strategy: str  # 'fts' | 'keyword' | 'vector'
     snippet: str
+    similarity: float | None = None
 
 
 def _visibility_filters(index: str) -> list:
@@ -170,6 +196,29 @@ def _keyword_candidates(session: Session, keywords: list[str], filters: list, li
     )
 
 
+def _vector_candidates(session: Session, query: str, filters: list, limit: int):
+    """Top chunks by meaning (§9 step 2), inside the same visibility filter.
+    Empty when no chunk has a vector yet or Voyage is unreachable."""
+    chunk = models.KnowledgeChunk
+    rows = (
+        session.query(chunk)
+        .filter(*filters)
+        .filter(chunk.embedding.isnot(None), chunk.embedding_model == EMBEDDING_MODEL)
+        .all()
+    )
+    if not rows:
+        return []
+    if voyage_calls_today(session) >= VOYAGE_DAILY_CEILING:
+        return []
+    try:
+        [query_vector] = embed_texts([query], "query")
+    except EmbeddingUnavailable:
+        return []
+    scored = [(row, cosine(query_vector, row.embedding)) for row in rows]
+    scored.sort(key=lambda pair: (-pair[1], pair[0].doc_path, pair[0].chunk_index))
+    return scored[:limit]
+
+
 def _assert_safe(results: list[RetrievedChunk], index: str) -> None:
     """Re-verify in Python what the SQL already guarantees. Fail closed."""
     allowed = ("public",) if index == "public" else ("public", "cx")
@@ -222,6 +271,28 @@ def retrieve(
                 continue
             candidates.append(_to_result(chunk, score, "keyword"))
             seen_ids.add(chunk.id)
+
+    # §9: fuse meaning search with text search when vectors exist; otherwise the
+    # text-only order above stands unchanged.
+    vector_hits = _vector_candidates(session, query, filters, VECTOR_TOP_N)
+    if vector_hits:
+        similarity = {row.id: sim for row, sim in vector_hits}
+        fused: dict[uuid.UUID, float] = {}
+        by_id: dict[uuid.UUID, RetrievedChunk] = {}
+        for rank, item in enumerate(candidates, start=1):
+            fused[item.chunk_id] = fused.get(item.chunk_id, 0.0) + 1.0 / (RRF_K + rank)
+            by_id[item.chunk_id] = dataclasses.replace(
+                item, similarity=similarity.get(item.chunk_id)
+            )
+        for rank, (row, sim) in enumerate(vector_hits, start=1):
+            fused[row.id] = fused.get(row.id, 0.0) + 1.0 / (RRF_K + rank)
+            if row.id not in by_id:
+                by_id[row.id] = _to_result(row, sim, "vector")
+                by_id[row.id] = dataclasses.replace(by_id[row.id], similarity=sim)
+        candidates = sorted(
+            by_id.values(),
+            key=lambda item: (-fused[item.chunk_id], item.doc_path, item.chunk_id.hex),
+        )
 
     results: list[RetrievedChunk] = []
     per_doc: dict[str, int] = {}

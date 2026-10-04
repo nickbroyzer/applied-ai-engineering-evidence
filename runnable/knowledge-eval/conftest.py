@@ -8,7 +8,7 @@ module binds to the test database and cannot reach a real one.
 Two deliberate differences from the private conftest:
 
 - Schema comes from `Base.metadata.create_all()` rather than `alembic upgrade
-  head`. This package ships the six knowledge models, not the 44-revision
+  head`. This package ships the six knowledge models, not the full Alembic
   migration history, and the tables they produce are the same.
 - No Stripe, auth, or rate-limit fixtures: this package contains none of that.
 """

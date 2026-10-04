@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-QUESTION_MAX_LENGTH = 2000
+QUESTION_MAX_LENGTH = 300  # D538: help questions are one line; caps cost per question
 
 
 class KnowledgeQuestion(BaseModel):

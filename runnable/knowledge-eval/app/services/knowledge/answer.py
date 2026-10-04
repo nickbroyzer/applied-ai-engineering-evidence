@@ -38,6 +38,7 @@ from app.services.knowledge.retrieval import (
     DEFAULT_TOP_K,
     INTERNAL_DIR,
     RetrievedChunk,
+    VECTOR_SIMILARITY_FLOOR,
     extract_keywords,
     retrieve,
 )
@@ -225,6 +226,11 @@ def _select_user_facing_sections(
     if not sections:
         return []
 
+    # Session 463: a section that is only its heading line (an article's bare
+    # title, no body) is never an answer on its own. "How do I contact support"
+    # returned just "Contact support" because the title matched both words.
+    sections = [s for s in sections if len(s.strip().splitlines()) > 1] or sections
+
     ranked = [
         (score, section)
         for position, section in enumerate(sections)
@@ -273,6 +279,10 @@ def _clears_relevance_floor(
     ground an answer and we refuse instead (§12: a wrong-but-confident
     policy answer is worse than a support referral).
     """
+    # Session 463: a strong meaning match (vector similarity at or above the
+    # floor) grounds an answer even when no exact words matched.
+    if any((item.similarity or 0.0) >= VECTOR_SIMILARITY_FLOOR for item in selected):
+        return True
     if any(item.strategy == "fts" for item in selected):
         return True
     keywords = extract_keywords(question)

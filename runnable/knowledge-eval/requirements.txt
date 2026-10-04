@@ -1,9 +1,11 @@
-# Pinned to the versions the private repository runs at commit 3413d028
+# Pinned to the versions the private repository runs at commit 8875721
 # (backend/requirements.txt), narrowed to what this package actually imports.
 #
 # Note what is ABSENT: no Anthropic SDK, no OpenAI, no sentence-transformers,
-# no pgvector, no HTTP client pointed at a model provider. This system calls
-# no external service, which is why it runs offline and deterministically.
+# no pgvector. Production's retrieval can make one embedding call per question
+# through httpx (app/services/knowledge/embeddings.py); this package pins the
+# key empty (app/config.py), so it calls no external service and runs offline
+# and deterministically.
 fastapi==0.104.1
 sqlalchemy==2.0.23
 psycopg[binary]==3.2.13
