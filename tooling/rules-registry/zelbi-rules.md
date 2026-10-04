@@ -250,7 +250,7 @@
 For clarity, these rules from other projects were evaluated and excluded:
 
 - **HOVERIFY GATE (U7, my-assistant M12, CC M7)** — Web browser CSS inspection. React Native doesn't render in browser. Replaced by M19.
-- **FLASK PORT (my-assistant M2)** — PC dashboard specific.
+- **FLASK PORT (my-assistant M2)** — the client dashboard specific.
 - **DOM/CONSOLE QUERIES (my-assistant M4)** — Browser DOM. Not applicable to mobile.
 - **PRE-FLIGHT GATE (aibs-core M1)** — ERPNext deploy-specific.
 - **DATA VALIDATION (aibs-core M6)** — ERPNext migration-specific.

@@ -185,7 +185,7 @@ These rules only apply within the project where they're stored.
 
 | # | Rule Name | Hook | Added | Status |
 |---|-----------|------|-------|--------|
-| M1 | PC PROJECT REFRESH | No | Pre-audit | Active |
+| M1 | THE CLIENT PROJECT REFRESH | No | Pre-audit | Active |
 | M2 | FLASK PORT | Yes (port-5000 hook) | Pre-audit | Active |
 | M3 | CLAUDE CODE ESCALATION | Yes (escalation hook) | Pre-audit | Active |
 | M4 | DOM/CONSOLE QUERIES | Yes (console-query hook) | 2026-04-11 | Active |
@@ -204,13 +204,13 @@ These rules only apply within the project where they're stored.
 | M17 | CURSOR HEADER FORMAT | No | Pre-audit | Active |
 | M18 | BUG ROUTING | Yes (bug-routing hook) | 2026-04-11 | Active |
 
-#### M1 — PC PROJECT REFRESH
+#### M1 — THE CLIENT PROJECT REFRESH
 **Text:** After sessions that ship changes, provide a Cursor prompt copying modified files to ~/Desktop/ for Project Knowledge upload. At session start, check if Project Knowledge files might be stale.
 **Hook:** No — omission-type failure, not detectable mid-action.
 **Reinforces:** U16
 
 #### M2 — FLASK PORT
-**Text:** PC Flask port is 5000. HOOK: If writing 5001 or :5001 — STOP: "Triggered port-5000 hook. PC port is 5000."
+**Text:** The client Flask port is 5000. HOOK: If writing 5001 or :5001 — STOP: "Triggered port-5000 hook. The client port is 5000."
 **Hook:** Yes — "Triggered port-5000 hook."
 **Trigger:** Writing 5001 or :5001 anywhere in output.
 **Notes:** Project-specific. Corrected multiple times in past sessions.

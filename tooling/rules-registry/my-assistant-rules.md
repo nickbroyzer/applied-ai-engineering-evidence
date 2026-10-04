@@ -3,7 +3,7 @@
 Project: my-assistant (construction-company Flask dashboard)
 Repo: ~/Projects/my-assistant/
 Claude Project: "<construction company>"
-These rules are stored as memory edits in the PC Claude project.
+These rules are stored as memory edits in the client Claude project.
 Last audited: 2026-04-11
 
 ---
@@ -12,7 +12,7 @@ Last audited: 2026-04-11
 
 | Memory # | Rule Name | Hook | Added | Status |
 |----------|-----------|------|-------|--------|
-| 1 | PC PROJECT REFRESH | No | Pre-audit | Active |
+| 1 | THE CLIENT PROJECT REFRESH | No | Pre-audit | Active |
 | 2 | FLASK PORT | Yes — "Triggered port-5000 hook." | Pre-audit | Active |
 | 3 | CLAUDE CODE ESCALATION | Yes — "Triggered escalation hook." | Pre-audit | Active |
 | 4 | DOM/CONSOLE QUERIES | Yes — "Triggered console-query hook." | 2026-04-11 | Active |
@@ -35,12 +35,12 @@ Last audited: 2026-04-11
 
 ## Rule Details
 
-### M1 — PC PROJECT REFRESH
+### M1 — THE CLIENT PROJECT REFRESH
 **Text:** After sessions that ship changes, provide a Cursor prompt copying modified files to ~/Desktop/ for Project Knowledge upload. At session start, check if Project Knowledge files might be stale.
 **Hook:** No — omission-type failure, not detectable mid-action.
 
 ### M2 — FLASK PORT
-**Text:** PC Flask port is 5000. HOOK: If writing 5001 or :5001 — STOP: "Triggered port-5000 hook. PC port is 5000."
+**Text:** The client Flask port is 5000. HOOK: If writing 5001 or :5001 — STOP: "Triggered port-5000 hook. The client port is 5000."
 **Hook:** Yes — "Triggered port-5000 hook."
 **Trigger:** Writing 5001 or :5001 anywhere in output.
 

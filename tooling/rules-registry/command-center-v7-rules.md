@@ -97,19 +97,19 @@ Last audited: 2026-04-11
 **Text:** If a bug or task touches 3+ files or traces data flow across files, write a single Claude Code prompt (include: problem, files to read, likely causes, fix, verification). Do not debug incrementally in chat. HOOK: If asking Nick to cat/grep/curl a second time for the same issue — STOP: "Triggered escalation hook. Write a Claude Code prompt."
 **Hook:** Yes — "Triggered escalation hook."
 **Trigger:** Asking Nick to cat/grep/curl a second time for the same issue.
-**Breakage history:** CC 3.9 — multi-round chat diagnosis of warnings card bug before writing a prompt. Adopted from PC project where pattern was systemic.
+**Breakage history:** CC 3.9 — multi-round chat diagnosis of warnings card bug before writing a prompt. Adopted from the client project where pattern was systemic.
 
 ### M15 — BEFORE EVERY CURSOR PROMPT
 **Text:** Stop. Check: (1) Is this Plan or Build? Use correct mode and model tag. (2) Does it touch CSS? If yes, demand Hoverify measurements FIRST. (3) Is the model tag correct? Plan=Sonnet 4.6, Build=Composer 2, Debug=Sonnet 4.6. HOOK: If writing a Cursor prompt without checking mode/model/CSS — STOP: "Triggered pre-prompt hook. Run the 3-check gate."
 **Hook:** Yes — "Triggered pre-prompt hook."
 **Trigger:** Writing a Cursor prompt without running the 3-check gate.
-**Breakage history:** Adopted from PC project where wrong model tags and missing Hoverify checks were documented repeat failures. Same Cursor workflow applies to CC.
+**Breakage history:** Adopted from the client project where wrong model tags and missing Hoverify checks were documented repeat failures. Same Cursor workflow applies to CC.
 
 ### M16 — BUG ROUTING
 **Text:** When a bug is reported — state the symptom, then write a Cursor Plan prompt or Claude Code prompt (per rule #14). No multi-step chat diagnosis. One clarifying question allowed if data only exists in browser/live site. HOOK: If asking a second diagnostic question without a prompt — STOP: "Triggered bug-routing hook. Write the prompt."
 **Hook:** Yes — "Triggered bug-routing hook."
 **Trigger:** Asking a second diagnostic question without writing a prompt.
-**Breakage history:** CC 3.9 — multiple rounds of diagnostic questions about warnings card before writing a fix prompt. Adopted from PC project.
+**Breakage history:** CC 3.9 — multiple rounds of diagnostic questions about warnings card before writing a fix prompt. Adopted from the client project.
 
 ---
 
@@ -123,7 +123,7 @@ Last audited: 2026-04-11
 
 ## Audit History
 
-- 2026-04-11: Full audit per RULE-FIX-BLUEPRINT-v3.md. Pass 1 (bloat): 0 issues. Pass 2 (rule pairs): 0 contradictions. Pass 3 (vs User Preferences): 0 contradictions. 3 hooks added to existing rules (#7, #8, #9). Hook added to #5 (NEVER INVENT). 3 rules adopted from PC project (#14 ESCALATION, #15 PRE-PROMPT GATE, #16 BUG ROUTING). Final count: 16 rules, 7 hooks.
+- 2026-04-11: Full audit per RULE-FIX-BLUEPRINT-v3.md. Pass 1 (bloat): 0 issues. Pass 2 (rule pairs): 0 contradictions. Pass 3 (vs User Preferences): 0 contradictions. 3 hooks added to existing rules (#7, #8, #9). Hook added to #5 (NEVER INVENT). 3 rules adopted from the client project (#14 ESCALATION, #15 PRE-PROMPT GATE, #16 BUG ROUTING). Final count: 16 rules, 7 hooks.
 
 ---
 

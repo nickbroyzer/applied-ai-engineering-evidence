@@ -62,7 +62,7 @@ if [ "$PROJECT_NAME" = "command-center-v7" ]; then
     OBSIDIAN_DIR="$HOME/Documents/Obsidian/MyVault/CC Project"
     APP_PORT=5003
 elif [ "$PROJECT_NAME" = "my-assistant" ]; then
-    OBSIDIAN_DIR="$HOME/Documents/Obsidian/MyVault/PC Project"
+    OBSIDIAN_DIR="$HOME/Documents/Obsidian/MyVault/<project>"
     APP_PORT=5001
 fi
 

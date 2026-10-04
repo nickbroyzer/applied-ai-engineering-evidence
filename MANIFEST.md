@@ -7,7 +7,7 @@ Compiled by hashing each output file against the private sources, so
 unchanged". Anything not byte-identical is listed as authored or modified and,
 if it came from a private file, has an entry in §1 or §2.
 
-- **284 files** · 157 verbatim · 127 authored or modified
+- **284 files** · 152 verbatim · 132 authored or modified
 - Source commit for all Zelbi material: `88757212b5ea2395913cee61d81b05822818484a`
   (`8875721`, 2026-10-03). Every Zelbi-sourced file was hashed against the
   tree at that commit, read from a clean clone, never from a working tree.
@@ -77,7 +77,8 @@ code is verbatim.
 | `tooling/agents/{build-error-resolver,code-reviewer,planner,security-reviewer}.md`, `tooling/rules-registry/{my-assistant-rules,RULE-FIX-BLUEPRINT-v2,RULE-FIX-BLUEPRINT-v3}.md` | The construction company's real name — 11 occurrences across 7 files (September, unchanged). | "the construction company" / "construction-company operations dashboard". |
 | Everywhere | The company owner's real name. | Never written. |
 | `05-process/handoff-protocol.md` (2 paths), `tooling/skills/handoff-protocol/SKILL.md` (2 paths) | The company's initialism in a private note directory path (September, unchanged). | `<project>`. |
-| `tooling/skills/SYNC_MAP.md` line 8 | The company's two-letter initialism in a table cell, missed in September and published since. Removed 2026-10-04; the earlier copy stays in git history. | "the client". |
+| `tooling/skills/SYNC_MAP.md` lines 8–9; `tooling/rules-registry/RULES-REGISTRY.md` lines 178, 197, 203; `tooling/rules-registry/my-assistant-rules.md` lines 6, 15, 38, 43; `tooling/rules-registry/command-center-v7-rules.md` lines 100, 106, 112, 126; `tooling/rules-registry/RULE-FIX-BLUEPRINT-v2.md` line 219; `tooling/rules-registry/RULE-FIX-BLUEPRINT-v3.md` line 411; `tooling/rules-registry/zelbi-rules.md` line 253; `05-process/behavioral-rulebook.md` lines 188, 207, 213 | The company's two-letter initialism in prose and rule names, missed in September and published since. Removed 2026-10-04; the earlier copies stay in git history. | "the client" ("THE CLIENT" inside the upper-case rule name M1; "The client" at the start of a sentence). |
+| `tooling/hooks/session-start.sh` line 65; `tooling/skills/cowork-prompts/SKILL.md` lines 10, 20, 25 | The same initialism inside filesystem paths: a note-vault folder and a screenshots folder. Removed 2026-10-04. | `<project>` (`MyVault/<project>`, `Desktop/<project>-Screenshots/`). |
 | `code/admin_ops/test_watcher.py` lines 18, 73, 224, 318, 327 | Zelbi's Sentry organisation slug, as a subdomain (4) and in an API path (1). | `example-org`. |
 | `code/credits_devicecheck/test_devicecheck_service.py` line 17 | Zelbi's real Apple Developer Team ID, used as the test's issuer. The same literal is the default in the unpublished `config.py`. | `TEAMID0000`. |
 
@@ -271,7 +272,7 @@ verification/secret-scan.sh --env-file ~/Projects/zelbi.ai/.env.local
 **First pass: 891 hits across 7 classes, 781 of them `long-b64`.** That class
 matched every long file path and test name. It was tightened to require upper
 case, lower case and a digit, because a run of letters alone is a name, not a
-key. **Final pass: 119 hits across 7 classes, every one read and benign.**
+key. **Final pass: 120 hits across 7 classes, every one read and benign.**
 
 - **Zero hits** from the 65 literal and env-value needles.
 - **Zero hits** in every key, token, PEM, JWT, credentialed-URL and DSN-with-host
@@ -282,7 +283,7 @@ key. **Final pass: 119 hits across 7 classes, every one read and benign.**
 |---|---|---|
 | `email` | 50 | The published support address, and one `example.com` fixture address. |
 | `home-path` | 30 | Absolute home paths in verbatim `tooling/` and `05-process/` files, plus this file naming them. |
-| `long-b64` | 8 | Mixed-case identifiers: test names that embed a decision or ticket number (`test_D62_…`, `test_TLS_1_…`), long snapshot paths in this file and the tooling sync map. |
+| `long-b64` | 9 | Mixed-case identifiers: test names that embed a decision or ticket number (`test_D62_…`, `test_TLS_1_…`), long snapshot paths in this file and the tooling sync map. |
 | `long-hex` | 15 | Git commit SHAs, and the SHA-256 of the pip freeze in the October pytest summary. |
 | `managed-host` | 5 | The `example-org` replacement host in `test_watcher.py`, and this file naming it. |
 | `postgres-dsn` | 6 | Credential-free `localhost` test URLs in the runnable package, the pytest summaries, and this file. |
@@ -624,23 +625,23 @@ changed since 2026-09-03 carry that snapshot's recorded row.
 | `hooks/pre-compact.sh` | `~/.claude/hooks/pre-compact.sh` (snapshot 2026-09-03) | verbatim |
 | `hooks/prompt-format-hook.py` | `~/.claude/hooks/prompt-format-hook.py` (snapshot 2026-09-03) | verbatim |
 | `hooks/session-end.sh` | `~/.claude/hooks/session-end.sh` (snapshot 2026-09-03) | verbatim |
-| `hooks/session-start.sh` | `~/.claude/hooks/session-start.sh` (snapshot 2026-09-03) | verbatim |
+| `hooks/session-start.sh` | modified from `~/.claude/hooks/session-start.sh` (snapshot 2026-09-03) (§1.4) | authored / modified |
 | `hooks/test_conduct_lesson_parser.py` | `~/.claude/hooks/test_conduct_lesson_parser.py` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/BREAKAGE-LOG.md` | `~/Projects/ai-rules/BREAKAGE-LOG.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/RULE-FIX-BLUEPRINT-v2.md` | authored for this repository | authored / modified |
 | `rules-registry/RULE-FIX-BLUEPRINT-v3.md` | authored for this repository | authored / modified |
-| `rules-registry/RULES-REGISTRY.md` | `~/Projects/ai-rules/RULES-REGISTRY.md` (snapshot 2026-09-03) | verbatim |
+| `rules-registry/RULES-REGISTRY.md` | modified from `~/Projects/ai-rules/RULES-REGISTRY.md` (snapshot 2026-09-03) (§1.4) | authored / modified |
 | `rules-registry/aibs-core-rules.md` | `~/Projects/ai-rules/aibs-core-rules.md` (snapshot 2026-09-03) | verbatim |
-| `rules-registry/command-center-v7-rules.md` | `~/Projects/ai-rules/command-center-v7-rules.md` (snapshot 2026-09-03) | verbatim |
+| `rules-registry/command-center-v7-rules.md` | modified from `~/Projects/ai-rules/command-center-v7-rules.md` (snapshot 2026-09-03) (§1.4) | authored / modified |
 | `rules-registry/my-assistant-rules.md` | authored for this repository | authored / modified |
 | `rules-registry/preferences-archive-2026-07-17.md` | `~/Projects/ai-rules/preferences-archive-2026-07-17.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/tools-bench-cli.md` | `~/Projects/ai-rules/tools-bench-cli.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/tools-cursor.md` | `~/Projects/ai-rules/tools-cursor.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/tools-erpnext-desk.md` | `~/Projects/ai-rules/tools-erpnext-desk.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/tools-frappe-cloud.md` | `~/Projects/ai-rules/tools-frappe-cloud.md` (snapshot 2026-09-03) | verbatim |
-| `rules-registry/zelbi-rules.md` | `~/Projects/ai-rules/zelbi-rules.md` (snapshot 2026-09-03) | verbatim |
+| `rules-registry/zelbi-rules.md` | modified from `~/Projects/ai-rules/zelbi-rules.md` (snapshot 2026-09-03) (§1.4) | authored / modified |
 | `skills/SYNC_MAP.md` | modified from `~/.claude/skills/SYNC_MAP.md` (snapshot 2026-09-03) (§1.4) | authored / modified |
-| `skills/cowork-prompts/SKILL.md` | `~/.claude/skills/cowork-prompts/SKILL.md` (snapshot 2026-09-03) | verbatim |
+| `skills/cowork-prompts/SKILL.md` | modified from `~/.claude/skills/cowork-prompts/SKILL.md` (snapshot 2026-09-03) (§1.4) | authored / modified |
 | `skills/debug-mode/SKILL.md` | `~/.claude/skills/debug-mode/SKILL.md` (snapshot 2026-09-03) | verbatim |
 | `skills/handoff-protocol/SKILL.md` | `~/.claude/skills/handoff-protocol/SKILL.md` (snapshot 2026-09-03) | verbatim |
 | `skills/plan-validate-execute/SKILL.md` | `~/.claude/skills/plan-validate-execute/SKILL.md` (snapshot 2026-09-03) | verbatim |

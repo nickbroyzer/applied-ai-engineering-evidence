@@ -216,7 +216,7 @@ When adding a new project-scoped rule, update BOTH the project's rules file AND 
 
 Current project files:
 - `aibs-core-rules.md` — ERPNext migration for the construction company
-- `my-assistant-rules.md` — PC Flask dashboard (legacy, active)
+- `my-assistant-rules.md` — the client Flask dashboard (legacy, active)
 - `command-center-v7-rules.md` — Command Center v7
 
 ---
