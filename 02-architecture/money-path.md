@@ -1,9 +1,10 @@
 # The money path
 
-Code: [`../code/payments/`](../code/payments/). Tests: 59 `def test_` functions
-across six payment files plus a money subset of the claims tests — stated as
-"~60" and itemised in
-[`../verification/repo-metrics-2026-09-03.md`](../verification/repo-metrics-2026-09-03.md).
+Code: [`../code/payments/`](../code/payments/). Tests: 118 `def test_` functions
+(122 collected) across nine payment files — the six published in September (92)
+plus the deferred-intent, claim-fee and curbside-sweeper tests — itemised in
+[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md).
+All passed in the recorded run at Zelbi `8875721`.
 
 ## The lifecycle
 

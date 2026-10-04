@@ -62,6 +62,12 @@ The floor was calibrated on real questions: help questions that rely on meaning
 alone scored 0.48 and up; off-topic ones topped out at 0.40
 (`retrieval.py:52-54`).
 
+**Why it was added.** On a set of 24 real help questions, text-only retrieval
+refused 6 and put the right article first on about 14. With meaning search fused
+in: no refusals, and the right article first on all 24. That measurement is
+recorded in the decision log (D537, not published here); it was not re-run for
+this repository and is not part of the golden eval.
+
 ## Cost and failure: the path is optional
 
 - **At most one embedding call per question** — the question itself
@@ -105,6 +111,9 @@ Named plainly, because the absences are part of the design record:
   vectors they would go hybrid. But the recorded runs here have neither, and the
   eval run row stores `embedding_model=None` regardless (`answer_eval.py:184`).
   **22/22 with zero leaks describes text-only retrieval.**
+- **Every typed question goes to a third party.** With a key configured, the
+  question text is sent to Voyage AI to be embedded (D537 records that the
+  privacy policy must name it).
 - **Stale docstrings.** Several module docstrings still say "no embeddings"
   (`retrieval.py:15,25,250-251`, `answer.py:4`, `routers_knowledge.py:3-4`,
   `ingestion.py:3,16-17`). They are published verbatim; this page is the

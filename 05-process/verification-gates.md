@@ -90,8 +90,8 @@ project's instructions say so in as many words.
 ## How this repository obeys its own rule
 
 Every number here traces to
-[`../verification/repo-metrics-2026-09-03.md`](../verification/repo-metrics-2026-09-03.md)
-or [`../verification/pytest-summary-2026-09-03.txt`](../verification/pytest-summary-2026-09-03.txt),
+[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md)
+or [`../verification/pytest-summary-2026-10-03.txt`](../verification/pytest-summary-2026-10-03.txt),
 both of which carry the command that produced them. Where a figure could not be
 reproduced, [`../LIMITATIONS.md`](../LIMITATIONS.md) says so rather than
 repeating it.

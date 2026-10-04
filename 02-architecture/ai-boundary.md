@@ -5,12 +5,14 @@ The interesting part is *why*.
 
 | | Vision listing pipeline | Knowledge / policy answering |
 |---|---|---|
-| Calls a model | yes — one multimodal call | **no** |
-| Embeddings / vectors | no | no |
-| External API at request time | yes | **none** |
+| A model writes output | yes — one multimodal call | **no** |
+| Embeddings / vectors | no | yes — one query embedding to *find* text, optional |
+| External API at request time | yes | one embedding call; **none** without a key or past the daily ceiling |
 | Failure mode if wrong | a bad listing draft the user edits | a **wrong policy answer** |
-| Determinism | not required | required |
-| Tests | 21 | 108 |
+| Determinism of the answer | not required | required |
+| Tests (`def test_`) | 10 | 109 |
+
+Line numbers in this page are at Zelbi `8875721`.
 
 ## Why Claude for vision
 
@@ -30,23 +32,29 @@ what happens to a hold, or about what data is retained on account deletion is
 not a bad draft — it is a **false statement about money or privacy, made by the
 platform, to a user, at scale**, with nobody in the loop to catch it.
 
-So the knowledge system calls no model. Retrieval is PostgreSQL full-text search
-with a keyword fallback; the answer is composed from retrieved text by code;
-anything that does not clear a relevance floor is refused with a support route.
-The refusal wording never confirms that a hidden rule exists.
+So no model writes a policy answer. Since Session 463 a model does help *find*
+the text: retrieval fuses PostgreSQL full-text search (with a keyword fallback)
+with one Voyage embedding of the question, by reciprocal rank, and falls back to
+text alone when there is no key or the daily ceiling is reached — see
+[`hybrid-retrieval.md`](hybrid-retrieval.md). That is a deliberate split: an
+embedding can only change *which* passages are considered, never *what* is
+said. The answer is composed from retrieved text by code; anything that does not
+clear a relevance floor is refused with a support route. The refusal wording
+never confirms that a hidden rule exists.
 
 Two structural properties do the safety work:
 
-- **Visibility is a SQL predicate, not a post-filter.** A public query
-  *physically cannot rank* a restricted chunk, because the restriction is in the
-  `WHERE` clause. Post-filtering means the wrong row was retrieved and then
+- **Visibility is a SQL predicate, not a post-filter — on every path.** A
+  public query *physically cannot rank* a restricted chunk, by words or by
+  meaning, because the same restriction is in the `WHERE` clause of the
+  full-text, keyword and vector queries. Post-filtering means the wrong row was retrieved and then
   dropped — one bug away from being returned.
 - **Every guarantee is re-asserted on the way out.** The SQL already guarantees
   no internal document and no deny-listed decision; the code checks again on the
   results and again on the assembled answer, and fails closed into a refusal on
   any violation.
 
-The whole thing runs, offline, on a reviewer's machine:
+The text-only half runs, offline, on a reviewer's machine:
 [`../runnable/knowledge-eval/`](../runnable/knowledge-eval/). That package
 records something worth reading — three separate attempts to induce a leak
 through the eval contract, each of which the composer converted into a refusal
@@ -87,10 +95,15 @@ model boundary debuggable after the fact rather than by re-running it.
 
 ## Tests
 
-21 backend tests across four files, provider mocked: eight on the service, six
-on the route, four specifically on object-key ownership, three on the item-type
-flag. Storage, provider, parsing, schema and authorization failures each have a
-case.
+10 backend tests across four files, provider mocked: four on the service, one on
+the route, two on object-key ownership, three on the item-type flag. The
+failure cases covered are a provider failure, an out-of-range confidence, an
+out-of-allowlist category (stage 4) and a foreign object key (403).
+
+In September there were 21. The other 11 tested the image-readability endpoint,
+which had no mobile caller and was deleted as dead code on 2026-10-03 (commit
+`b6ced95`). The storage-fetch failure and the 502 mapping were only ever tested
+on that path, and the fence-tolerant parse (stage 1) has no dedicated test.
 
 ## What this pipeline does not have
 
@@ -102,8 +115,9 @@ Any of those would be a reasonable next step. None of them is claimed. Streaming
 and per-task model selection exist in the construction-company platform
 described in [`system-overview.md`](system-overview.md), not here.
 
-## One more model call, and its status
+## The model call that was removed
 
-A second endpoint checks whether an uploaded image is readable, using the same
-discipline and a two-key schema. It exists on the backend and **has no mobile
-caller**. It is not presented as a user-facing production flow.
+A second endpoint checked whether an uploaded image was readable, using the same
+discipline and a two-key schema. It never had a mobile caller, and it was
+deleted with its tests on 2026-10-03 (`b6ced95`). The vision listing call is now
+the only generating model call in the product (`ai_service.py:123`).

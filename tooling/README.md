@@ -8,7 +8,7 @@ from Zelbi, and other people should be able to use it.
 | [`agents/`](agents/) | Nine subagent definitions I wrote — code review, security review, debugging, deployment, frontend, Python, SQL, planning, build-error resolution. The fifteen framework definitions that sit alongside them on my machine belong to an installed framework and are **not** included. |
 | [`hooks/`](hooks/) | Twelve runtime enforcement hooks plus a unit-tested rule parser. What each one blocks, and why documentation alone was not enough: [`../05-process/enforcement-hooks.md`](../05-process/enforcement-hooks.md). |
 | [`rules-registry/`](rules-registry/) | The cross-tool rules registry: one source of truth with tiers, hook bindings and revision dates, per-project rule files, two versions of the rule-fix blueprint, and a breakage log. |
-| [`skills/`](skills/) | The skills I authored, including the two-stage handoff protocol that ran 437 numbered sessions. |
+| [`skills/`](skills/) | The skills I authored, including the two-stage handoff protocol behind Zelbi's sessions, numbered through 473. (This folder is a snapshot taken 2026-09-03.) |
 
 MCP servers are configured in the Claude Code environment rather than in any
 file in this repository, and the Cursor-facing rules are a single file,

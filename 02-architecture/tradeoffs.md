@@ -20,7 +20,7 @@ calculus flips the moment a second person commits, and it flips *before* that if
 the manual habit slips again.
 
 **What is never claimed:** "every change was test-gated." It is a prohibited
-phrasing, and the honest sentence is "751 backend tests, green from a clean
+phrasing, and the honest sentence is "1,265 backend tests, green from a clean
 checkout at the audited commit."
 
 ## Client-trusted arrival confirmation
@@ -55,23 +55,36 @@ their own source of production incidents.
 
 **What is never claimed:** "money can never be taken twice or lost."
 
-## Lexical retrieval instead of embeddings
+## Hybrid retrieval, deterministic answers
 
-**The call:** the knowledge system uses PostgreSQL full-text search with a
-keyword fallback. No embeddings, no vector store.
+**The call:** until Session 463 the knowledge system used PostgreSQL full-text
+search with a keyword fallback and nothing else. It now adds one embedding of
+the question, ranks stored chunk embeddings by cosine similarity inside the
+same SQL visibility filter, and fuses the two lists by reciprocal rank. The
+answer is still composed by code from retrieved text; no model writes it. See
+[`hybrid-retrieval.md`](hybrid-retrieval.md).
 
-**The cost:** it misses paraphrases that a semantic index would catch. The
-mitigation is deliberate — a keyword fallback fills the slots full-text search
-leaves empty, and anything that does not clear a relevance floor is refused
-rather than answered weakly.
+**What changed the call:** lexical search refused real questions phrased in
+words the policy documents do not use. On a 24-question set of real help
+questions, text-only search refused 6 and put the right article first on about
+14; with meaning search fused in, it refused none and put the right article
+first on all 24 (D537, not published here). A calibrated similarity floor (0.45)
+decides when a meaning match alone is strong enough to answer.
 
-**Why:** the failure mode being defended against is a **confidently wrong policy
-answer**. A refusal that routes to support costs one email. Retrieval that is
-deterministic, inspectable, offline and constrained by SQL visibility rules is
-worth more here than recall. See [`ai-boundary.md`](ai-boundary.md).
+**The cost:** a paid external call per question, a dependency that can fail,
+and ranking that is no longer fully offline. Each is bounded: one call per
+question at most, a daily ceiling after which search is text-only, and any
+failure falls back to the text order rather than erroring. The *answer* side
+gives up nothing — a refusal still beats a weak answer.
 
-**What is never claimed:** RAG, vectors, embeddings, or LLM-based policy
-answering.
+**Why the answer stays deterministic:** the failure mode being defended against
+is a **confidently wrong policy answer**. An embedding can change which
+passages are considered; it cannot put a sentence in the platform's mouth.
+
+**What is never claimed:** that a model writes any answer, pgvector or a vector
+index (embeddings are a float-array column ranked in Python), or that the
+golden eval measures hybrid ranking — the recorded runs are text-only and the
+vector path has no test.
 
 ## In-process rate limiting
 

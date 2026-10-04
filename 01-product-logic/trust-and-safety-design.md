@@ -1,11 +1,15 @@
 # Trust and safety — the shape of the model
 
-Constants are withheld throughout: the deduction weights, heal threshold, score
-bounds, strike thresholds and window lengths are product tuning, and publishing
-them publishes the evasion recipe. The *shape* is the design, and the shape is
-here. Code: [`../code/trust/`](../code/trust/) and
-[`../code/message_guard/`](../code/message_guard/), with constants replaced by
-the symbol `WITHHELD` and the consuming logic unchanged.
+The *shape* of the model is the design, and the shape is here. The tuned
+numbers — deduction weights, heal threshold, score bounds, strike thresholds and
+window lengths — are published in the code
+([`../code/trust/`](../code/trust/)); they were withheld in September, but the
+published tests and the user-facing notice copy already stated them, so
+withholding them protected nothing ([`../MANIFEST.md`](../MANIFEST.md) §1.2).
+The scam-detection pattern table in
+[`../code/message_guard/`](../code/message_guard/) is still withheld: there,
+publishing the patterns would publish the evasion recipe. Line numbers below
+are at Zelbi `8875721`.
 
 ## Reputation: earned per handoff, not granted on arrival
 
@@ -67,14 +71,22 @@ a rule that punishes cancelling punishes the honest signal.
 ## Blocking: symmetric, and free
 
 Blocking is enforced in **both directions** from a single pair of helpers — a
-boolean check and a reusable SQL predicate — so a block filters feeds, listings,
-messages and claims identically. Thirteen enforcement call sites across the
-routers and one job invoke them (the count and its exact command are in
-[`../verification/repo-metrics-2026-09-03.md`](../verification/repo-metrics-2026-09-03.md);
-note the discrepancy recorded there and in [`../LIMITATIONS.md`](../LIMITATIONS.md)).
+boolean check and a reusable SQL predicate — across listings, messages and
+claims. Fourteen call sites invoke them: three in the listings router, seven in
+claims, two in messages, two in the post-window sweeper (the command and its
+output are in
+[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md)).
 
 Sharing the predicate is the point. Two hand-written block checks eventually
-disagree, and the disagreement is a leak.
+disagree, and the disagreement is a leak. **The feed does not yet follow its own
+rule:** the nearby and map feed queries carry the block filter as an inlined
+SQL subquery, written out four times (`routers/listings.py:69, 109, 164, 201`),
+and the shared `NEARBY_BLOCK_FILTER_SQL` constant is imported there but unused.
+The four copies agree today; that is exactly the situation the shared predicate
+exists to prevent.
+
+Blocking someone mid-claim cancels the live claim through the shared cancel
+service and records it as a flag for the operator console.
 
 Two rulings make blocking usable rather than merely available:
 
@@ -88,6 +100,13 @@ Two rulings make blocking usable rather than merely available:
 Launch-scope content detection is regex and keyword only — **explicitly no
 per-message model** ([`D226`](../03-decisions/trust/D226.md)) — because this runs
 at a send-time choke point where latency and cost are bounded.
+
+Three rules are active: the listing-tempo guard (rule 2), the message guard on
+send and edit (rule 3, seven checks, blocking with a 400), and pricing words on a
+free listing (rule 6). Rule 1 was retired, rule 4 is marked not active (its only
+caller was never called and was deleted as dead code), and rule 5, duplicate
+photos, is a stub — `RULE_DEFINITIONS` in `scam_detection.py` states each
+status, and the operator console reads it from there.
 
 The engineering is not in the patterns; it is in what runs **before** them.
 A normalizer decodes evasion first, so every rule matches against the decoded
@@ -133,6 +152,12 @@ replaced by something narrower, a location-free listing tempo guard.
 Deleting is the harder call. A disabled rule looks like coverage in an audit and
 is nobody's job to remove.
 
+## Credits that cannot be farmed
+
+The free-pickup credits added in September are a trust feature too: a giveaway
+or invite credit cannot be spent until the iPhone that earned it passes Apple
+DeviceCheck. See [`device-check-credits.md`](device-check-credits.md).
+
 ## Stated limitations
 
 - **Arrival confirmation is client-reported** ([`D444`](../03-decisions/ops/D444.md)).
@@ -140,7 +165,9 @@ is nobody's job to remove.
 - **Message-guard enforcement is partial.** Detection is built; not every
   enforcement action is wired.
 - **Duplicate-photo detection is a stub.**
-- **No test proves a non-admin receives 403** on the dispute-resolution endpoint.
+- **No test proves a non-admin receives 403 on the dispute-resolve route**
+  specifically; the dispute list and message routes have one
+  (`test_admin_disputes.py:244, 372`).
 - **A separate trust-word raw counter has no writer and does not heal** — dead
   code, filed for deletion.
 - Prohibited-item handling: withheld from the public repository; available on

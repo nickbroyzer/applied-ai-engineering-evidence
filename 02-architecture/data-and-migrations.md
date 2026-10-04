@@ -1,8 +1,9 @@
 # Data and migrations
 
-**44 Alembic revisions on a single root**, PostgreSQL with PostGIS via Supabase,
-SQLAlchemy ORM. Command and output:
-[`../verification/repo-metrics-2026-09-03.md`](../verification/repo-metrics-2026-09-03.md).
+**61 Alembic revisions on a single root and a single head**, PostgreSQL with
+PostGIS via Supabase, SQLAlchemy ORM, at Zelbi `8875721`. Command and output:
+[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md)
+(the root and head were read from each revision's `revision` / `down_revision`).
 
 ## Constraints as the contract
 
@@ -21,6 +22,12 @@ refused. You can read all of them in
 [`../runnable/knowledge-eval/app/models.py`](../runnable/knowledge-eval/app/models.py),
 which is byte-identical to production for those six tables.
 
+The chunk table also carries the embedding used by Help's meaning search, as a
+nullable `ARRAY(Float)` column with the model name beside it — a placeholder the
+model itself labels as such, until pgvector is available on the database
+(`models.py:775-777`; migration `f42fad93de29`). There is no vector index; see
+[`hybrid-retrieval.md`](hybrid-retrieval.md).
+
 A second example of the same instinct: what stops a second picker claiming an
 item is a **partial unique index on claims** — not a status field, not
 application logic. Which is why cancelling the claim is what frees the item, and
@@ -29,7 +36,7 @@ why a `pending_payment` claim leaves its listing `active`.
 ## Row-level security — stated precisely
 
 RLS is enabled with a deny-all posture as **Supabase dashboard state**. There are
-**zero RLS statements across all 44 migrations**:
+**zero RLS statements across all 61 migrations**:
 
 ```
 $ grep -ril 'row level security\|ENABLE ROW LEVEL' backend/migrations/versions | wc -l

@@ -87,7 +87,7 @@ requires re-running the recompute, or the same silent split reappears.
 ## Test
 
 Fifteen collected cases (ten `def test_` functions; the difference is
-parametrisation — see [`../verification/repo-metrics-2026-09-03.md`](../verification/repo-metrics-2026-09-03.md)).
+parametrisation — see [`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md)).
 Two carry the properties:
 
 - **distance in range** — the derived offset lands inside the metre band, which

@@ -1,26 +1,28 @@
 # System overview
 
 Zelbi is a location-based giveaway marketplace: React Native client, FastAPI
-backend, PostgreSQL, a Stripe money path, one model call in the product, and a
-deterministic policy-answering system that calls no model at all.
+backend, PostgreSQL, a Stripe money path, one generating model call in the
+product, and a policy-answering system that uses one embedding call to find text
+and no model to write the answer.
 
-All figures below trace to
-[`../verification/repo-metrics-2026-09-03.md`](../verification/repo-metrics-2026-09-03.md),
+All figures below are at Zelbi `8875721` and trace to
+[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md),
 which carries the command that produced each one.
 
 ```
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  CLIENT — React Native / Expo, TypeScript, 36 route screens          │
+  │  CLIENT — React Native / Expo, TypeScript, 38 route screens          │
   │  feed · map · listing detail · give flow · checkout · handoff hub    │
   └───────────────────────────────┬──────────────────────────────────────┘
                                   │ HTTPS, bearer token
                                   ▼
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  API — FastAPI, 16 routers, 14 service modules                       │
+  │  API — FastAPI, 22 routers, 25 service modules                       │
   │                                                                      │
-  │   auth   listings   claims   messages   disputes   blocks   users    │
-  │   ai     knowledge  uploads  places     notifications                │
-  │   admin  health     stripe-billing      stripe-webhooks              │
+  │   auth   listings   claims   messages   blocks    users   sources    │
+  │   ai     knowledge  uploads  places     notifications     email-prefs│
+  │   admin  admin-actions  admin-reads  admin-writes  events  watcher   │
+  │   health     stripe-billing      stripe-webhooks                     │
   │                                                                      │
   │   per-route rate limiting (in-process)                               │
   └──┬───────────┬──────────────┬─────────────┬──────────────┬───────────┘
@@ -29,41 +31,44 @@ which carries the command that produced each one.
   ┌────────┐ ┌────────┐  ┌────────────┐ ┌──────────┐  ┌─────────────┐
   │ DATA   │ │STORAGE │  │ MONEY PATH │ │ AI       │  │ KNOWLEDGE   │
   │        │ │        │  │            │ │ BOUNDARY │  │             │
-  │Postgres│ │object  │  │ authorize  │ │ one      │  │ NO model.   │
-  │+PostGIS│ │storage │  │ capture    │ │ vision   │  │ Postgres    │
-  │via     │ │for     │  │ void       │ │ call,    │  │ full-text   │
-  │Supabase│ │photos  │  │ refund     │ │ five-    │  │ + refusal.  │
-  │        │ │        │  │ webhooks   │ │ stage    │  │ 22 golden   │
-  │44      │ │        │  │ sweepers   │ │ boundary │  │ cases.      │
+  │Postgres│ │private │  │ authorize  │ │ one      │  │ full-text + │
+  │+PostGIS│ │photos; │  │ capture    │ │ vision   │  │ 1 embedding │
+  │via     │ │signed  │  │ void       │ │ call,    │  │ call, rank  │
+  │Supabase│ │URLs    │  │ refund     │ │ five-    │  │ fusion. NO  │
+  │        │ │only    │  │ webhooks   │ │ stage    │  │ model writes│
+  │61      │ │        │  │ sweepers   │ │ boundary │  │ the answer. │
   │revs    │ │        │  │            │ │          │  │ RUNNABLE →  │
   └────────┘ └────────┘  └────────────┘ └──────────┘  └─────────────┘
                                   │
      ┌────────────────────────────┴──────────────────────────────┐
      ▼                                                           ▼
   ┌────────────────────────────┐              ┌──────────────────────────┐
-  │ JOBS — 4 cron entrypoints  │              │ OBSERVABILITY            │
-  │ 10-minute + daily runners  │              │ error reporting on the   │
+  │ JOBS — 2 cron runners,     │              │ OBSERVABILITY            │
+  │ 8 job modules              │              │ error reporting on the   │
   │ pending-payment sweep      │              │ API and both cron        │
-  │ post-window capture sweep  │              │ runners; no-op without   │
-  │ listing expiry · reminders │              │ a DSN; skipped under     │
-  │ recommendation scan        │              │ pytest                   │
+  │ post-window capture sweep  │              │ runners; Sentry webhook  │
+  │ listing expiry · reminders │              │ (HMAC-verified) feeds    │
+  │ recommendation scan · logs │              │ the admin console        │
   └────────────────────────────┘              └──────────────────────────┘
 ```
 
 ## The pieces
 
-**Client.** React Native / Expo with Expo Router, TypeScript. 36 route screens
-(41 files including layouts).
+**Client.** React Native / Expo with Expo Router, TypeScript. 38 route screens
+(43 files including layouts). One native Swift module, for Apple DeviceCheck —
+see [`../01-product-logic/device-check-credits.md`](../01-product-logic/device-check-credits.md).
 
-**API.** FastAPI. 16 routers, 14 service modules plus the `knowledge/` package.
+**API.** FastAPI. 22 routers, 25 service modules plus the `knowledge/` and
+`email_html/` packages. 28 routes in the four admin routers, 43 behind the admin
+check in all — see [`admin-and-ops.md`](admin-and-ops.md).
 Rate limiting is per-route and held in process — deliberately, because
 [`D275`](../03-decisions/ops/D275.md) scopes it to the model-calling router
 rather than building shared infrastructure before there is a second process to
 share it with.
 
-**Data.** PostgreSQL with PostGIS via Supabase, SQLAlchemy, Alembic — 44
-revisions on a single root. Auth is Supabase Auth. Row-level security is enabled
-as **unversioned dashboard state**: there are zero RLS statements across all 44
+**Data.** PostgreSQL with PostGIS via Supabase, SQLAlchemy, Alembic — 61
+revisions. Auth is Supabase Auth. Row-level security is enabled
+as **unversioned dashboard state**: there are zero RLS statements across all 61
 migrations, so it is honest to say row-level security is enabled and dishonest
 to present it as owned architecture. See [`data-and-migrations.md`](data-and-migrations.md).
 
@@ -71,28 +76,34 @@ to present it as owned architecture. See [`data-and-migrations.md`](data-and-mig
 signature verification, idempotency keys backed by database uniqueness, and two
 reconciliation sweepers. See [`money-path.md`](money-path.md).
 
-**AI boundary.** Exactly one model call in the product: a vision call that turns
-a photo into two validated listing drafts. Everything around it is
-application-level hardening. See [`ai-boundary.md`](ai-boundary.md).
+**AI boundary.** Exactly one generating model call in the product: a vision
+call that turns a photo into two validated listing drafts. Everything around it
+is application-level hardening. See [`ai-boundary.md`](ai-boundary.md).
 
-**Knowledge system.** Tier-aware policy retrieval and refusal with no model,
-no embeddings and no external API. Extracted and runnable at
-[`../runnable/knowledge-eval/`](../runnable/knowledge-eval/).
+**Knowledge system.** Tier-aware policy retrieval and refusal. Retrieval is
+hybrid — full-text search plus one Voyage embedding call per question, fused by
+reciprocal rank, behind the same SQL visibility filter — and falls back to text
+alone without a key or past a daily ceiling. No model writes the answer. See
+[`hybrid-retrieval.md`](hybrid-retrieval.md); the text-only half is extracted
+and runnable at [`../runnable/knowledge-eval/`](../runnable/knowledge-eval/).
 
-**Jobs.** Four cron entrypoints (a ten-minute runner and a daily runner among
-them) driving six job modules. Both counts are given because the two counting
-methods differ.
+**Jobs.** Two cron runners, a ten-minute one and a daily one, driving eight job
+modules. Two single-job runners were folded into the daily runner and deleted on
+2026-10-03.
 
 **Deployment and object storage.** The API and both cron runners are deployed
-on Railway; user images go to a Cloudflare R2 bucket, with the account,
-key-pair, bucket and public base URL all required settings on the backend
-config. The marketing site and the five legal paths at zelbi.ai are served
+on Railway; user images go to a Cloudflare R2 bucket with no public route —
+every photo address the API returns is a time-limited signed URL (see
+[`../01-product-logic/private-photo-access.md`](../01-product-logic/private-photo-access.md)).
+The account, key-pair and bucket are required settings on the backend config. The marketing site and the five legal paths at zelbi.ai are served
 separately from Cloudflare Pages, out of a `web/` folder in the private
 repository that is not published here. No Cloudflare Workers are used.
 
 **Observability.** Error reporting wired into the API and both cron runners,
 a no-op without a DSN, and skipped entirely under pytest so a local test run
-never reports its own deliberate failures.
+never reports its own deliberate failures. Sentry in turn posts issues to an
+HMAC-verified webhook that stores them for the operator console
+([`admin-and-ops.md`](admin-and-ops.md)).
 
 ## A second system, for context
 
@@ -139,6 +150,6 @@ description rather than on published code.
 
 - **No CI workflow** at this commit. The suite was run manually at session close.
 - **No Docker configuration** in the repository at this commit.
-- **No automated tests on mobile or web.** All 751 tests are backend.
+- **No automated tests on mobile or web.** All 1,265 tests are backend.
 
 See [`tradeoffs.md`](tradeoffs.md) and [`../LIMITATIONS.md`](../LIMITATIONS.md).

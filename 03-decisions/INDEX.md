@@ -1,12 +1,18 @@
 # Decision records — index
 
-Forty-four entries selected from the 406 in the private decision log, grouped by
-theme. Each is copied **verbatim**; the only edits are the trust-model constant
-redactions marked inline and itemised in [`../MANIFEST.md`](../MANIFEST.md).
+Forty-eight entries selected from the 564 in the private decision log at
+`8875721`, grouped by theme. Each is copied **verbatim**, with no edits.
 
-The count itself is verifiable: parsing every `D<n>` entry in the source
-document yields 406 distinct decisions, highest `D445` — which independently
-reproduces the figure in the private fact pack (`Z-005`).
+The count is verifiable: every line that opens a `D<n>` entry — including
+list-item and struck-through entries — yields 564 distinct decisions, highest
+`D574`. The command is in
+[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md).
+
+**Correction.** The September version of this page said "406 distinct
+decisions" from "parsing every `D<n>` entry". That figure reproduces exactly at
+`3413d028`, but only by counting entries that open a line as `D<n>` or
+`**D<n>` — it missed 37 list-item entries and 8 struck-through ones. The
+inclusive count at that commit was 435. The metrics file shows both commands.
 
 Read as: **the question → the ruling → what shipped.**
 
@@ -28,6 +34,7 @@ Read as: **the question → the ruling → what shipped.**
 | [D317](money/D317.md) | How is consent to auto-capture recorded? | Against the claim, with wording version and timestamp | The consent columns |
 | [D319](money/D319.md) | When is consent stamped? | **At the tap, never at mount** | The separate idempotent accept endpoint |
 | [D324](money/D324.md) | How is an upheld dispute refunded? | Through the provider, as part of resolve — never by hand | The refund path, refund before ruling |
+| [D533](money/D533.md) | How does a dispute start? | **By email to support** — no app screen files one | The in-app filing route later removed as dead code |
 
 ## trust — reputation, strikes, blocking, message guard
 
@@ -44,6 +51,8 @@ Read as: **the question → the ruling → what shipped.**
 | [D272](trust/D272.md) | Hide a suspicious listing at post time? | Never | Post-time hiding removed |
 | [D299](trust/D299.md) | Is trust granted or earned? | Earned per handoff on a signed scale; every score carries a word | The rebuilt rings and descriptors |
 | [D318](trust/D318.md) | Does blocking cost the picker money? | **Never** — no fee, no strike, whatever the timing | The block cancel path |
+| [D542](trust/D542.md) | What earns a first-giveaway credit, and what stops it being farmed? | Only a completed handoff, once per person; **unspendable until the iPhone passes Apple DeviceCheck** | The credit service and the DeviceCheck gate |
+| [D544](trust/D544.md) | When does a referral pay the referrer? | Only on the friend's first qualifying donation; matching cards or one iPhone for two friends earn nothing | The referral credit rules |
 
 ## privacy — location and data
 
@@ -57,7 +66,7 @@ Read as: **the question → the ruling → what shipped.**
 | [D322](privacy/D322.md) | Does a blocked party keep their receipt? | Yes — minus the address. A receipt is a record | The receipt filter |
 | [D323](privacy/D323.md) | The fuzzing was reversible. Now what? | Key it with a server secret **and recompute every stored point** | The HMAC derivation + a 127-row recompute |
 
-## ai — the vision pipeline and its scope
+## ai — the vision pipeline, Help search, and their scope
 
 | D | The question | The ruling | What shipped |
 |---|---|---|---|
@@ -67,6 +76,7 @@ Read as: **the question → the ruling → what shipped.**
 | D213 — withheld from the public repository; available on request. |
 | [D438](ai/D438.md) | How is the photo gate voiced? | One voice, the camera pill — implements D122 | The capture screen |
 | [D440](ai/D440.md) | Cached analysis skips the beat? | No — it still plays | The AI screen timing |
+| [D538](ai/D538.md) | How is paid Help search kept from running up the bill? | Signed-in only, 30 an hour; **1,000 embedded questions a day, then text-only**; alerts at 80% and 100% | The daily ceiling and its alerts |
 
 ## ops — observability, limits, auth, jobs
 
@@ -84,7 +94,7 @@ Read as: **the question → the ruling → what shipped.**
 
 ---
 
-## How these 44 were chosen
+## How these 48 were chosen
 
 Selected by theme against the five areas the résumé makes claims about — money,
 trust, privacy, AI, and operations — with three further filters:
@@ -99,10 +109,10 @@ trust, privacy, AI, and operations — with three further filters:
    (no per-message model), D207 (deferred, with the blocker named). Deciding not
    to build is the harder half of the record.
 
-Per-entry reasons for the full 44 are in [`../MANIFEST.md`](../MANIFEST.md) for
+Per-entry reasons for all 48 are in [`../MANIFEST.md`](../MANIFEST.md) for
 review at the gate.
 
 **Not selected, and worth saying:** the log is dominated by UI and copy rulings —
 panel heights, corner radii, button labels, animation timing. They are real
-decisions and they are most of the 406, but they prove craft in a domain the
+decisions and they are most of the 564, but they prove craft in a domain the
 résumé does not claim, so they are out.

@@ -1,7 +1,9 @@
 <!--
 Copied verbatim from ~/.claude/skills/handoff-protocol/SKILL.md on 2026-09-03.
 No redactions were required: the file names no secret, host, key, or third
-party. This is the protocol that governed 437 numbered sessions on Zelbi.
+party. This is the protocol that has governed Zelbi's sessions, numbered
+through 473 at commit 8875721 (437 when this copy was taken). The count's
+method is in verification/repo-metrics-2026-10-03.md.
 -->
 
 ---
