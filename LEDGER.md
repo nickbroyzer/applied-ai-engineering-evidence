@@ -5,7 +5,8 @@ One row per sentence of résumé V8: **claim → where it is proven here → the
 `8875721`, re-derived 2026-10-03 in
 [`verification/repo-metrics-2026-10-03.md`](verification/repo-metrics-2026-10-03.md)
 and [`verification/pytest-summary-2026-10-03.txt`](verification/pytest-summary-2026-10-03.txt).
-Résumé figures that changed are listed with their refreshed values in
+Quoted résumé text is the final V8 wording. Every number in it, with its basis
+and its value before the refresh, is in
 [`verification/resume-v8-numbers-2026-10-03.md`](verification/resume-v8-numbers-2026-10-03.md).
 
 Then the reverse check: every folder in this repository must be reachable from
@@ -37,14 +38,14 @@ repository and only a description of it is here.
 |---|---|---|
 | "Builds production LLM systems end to end: vision pipelines, hybrid search with evals, payments, trust and safety." | vision: [`ai-boundary.md`](02-architecture/ai-boundary.md) · hybrid search: [`hybrid-retrieval.md`](02-architecture/hybrid-retrieval.md) · evals: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) · payments: [`money-path.md`](02-architecture/money-path.md) · trust and safety: [`trust-and-safety-design.md`](01-product-logic/trust-and-safety-design.md) | **⚑** "hybrid search with evals": the evals are real and pass 22/22, but they run text-only. No eval and no test exercises the hybrid ranking ([LIMITATIONS](LIMITATIONS.md) §Help search). |
 | "Built Zelbi solo in six months by directing AI coding assistants" | [`05-process/`](05-process/) · [`LIMITATIONS.md`](LIMITATIONS.md) §Authorship | **Solo:** `git log --format=%an \| sort -u` gives one author; commits carry AI co-author trailers. **Six months:** first commit 2026-04-09, last at this refresh 2026-10-03, which is 177 days. **⚑** Wording kept by ruling: it is literally true from 2026-10-09. |
-| "nearly 20 years running businesses before that" | — | **⚑** Not a code claim. Fact-IDs E-005a, E-007a/b, E-008. The career span on the résumé is January 2007 to December 2025, close to 19 years. The years I ran my own businesses (United Financing 2007–2010, Herbella 2013–2025) add up to about 16; the years between were employed mortgage work. |
+| "nearly 20 years in business before that" | — | **⚑** Not a code claim. Fact-IDs E-005a, E-007a/b, E-008. The three earlier-career roles run from January 2007 to December 2025, close to 19 years. |
 
 ## Skills
 
 | Skill | Proven at | Note |
 |---|---|---|
 | **AI** — Anthropic API (Claude), vision | [`ai-boundary.md`](02-architecture/ai-boundary.md), [`code/ai_service/`](code/ai_service/) | — |
-| structured outputs | [`ai-boundary.md`](02-architecture/ai-boundary.md) §five stages | **⚑** The model is asked for JSON, which is fence-stripped, parsed and Pydantic-validated. The Anthropic structured-output API feature is **not** used ([LIMITATIONS](LIMITATIONS.md) §AI path). "Structured JSON outputs" would be exact. |
+| structured JSON outputs | [`ai-boundary.md`](02-architecture/ai-boundary.md) §five stages · [`code/ai_service/ai_service.py`](code/ai_service/ai_service.py) | The model is asked for JSON, which is fence-stripped, parsed and Pydantic-validated. The Anthropic structured-output API feature is not used and not claimed ([LIMITATIONS](LIMITATIONS.md) §AI path). |
 | Pydantic validation | [`code/ai_service/ai_service.py`](code/ai_service/ai_service.py) | — |
 | Voyage embeddings | [`code/knowledge/embeddings.py`](code/knowledge/embeddings.py) · [`hybrid-retrieval.md`](02-architecture/hybrid-retrieval.md) | **⚑** Untested; the recorded evals do not exercise it. |
 | hybrid retrieval (rank fusion) | [`code/knowledge/retrieval.py`](code/knowledge/retrieval.py) — `RRF_K = 60` at :51, fusion at :275-295 | **⚑** Untested, as above. |
@@ -66,21 +67,21 @@ repository and only a description of it is here.
 
 ## Zelbi — scale line
 
-"Sole engineer, directing AI coding assistants · 2,107 commits · 1,300 backend
-tests passing · 40 app screens"
+"Sole engineer, directing AI coding assistants · 2,122 commits · 1,265 backend
+tests passing · 38 app screens"
 
-| Claim | Proven at | Verification | Refreshed |
-|---|---|---|---|
-| Sole engineer, directing AI coding assistants | [`05-process/`](05-process/) · [`LIMITATIONS.md`](LIMITATIONS.md) §Authorship | `git log --format=%an \| sort -u` → one author | — |
-| 2,107 commits | [`system-overview.md`](02-architecture/system-overview.md) | `git rev-list --count HEAD` | **2,122** |
-| 1,300 backend tests passing | [`code/`](code/) · [`verification/netblock.py`](verification/netblock.py) | [pytest-summary](verification/pytest-summary-2026-10-03.txt): `1265 passed`, exit 0 | **1,265** (1,217 `def test_`) |
-| 40 app screens | [`system-overview.md`](02-architecture/system-overview.md) | `mobile/app/**/*.tsx` excluding layouts | **38** |
+| Claim | Proven at | Verification |
+|---|---|---|
+| Sole engineer, directing AI coding assistants | [`05-process/`](05-process/) · [`LIMITATIONS.md`](LIMITATIONS.md) §Authorship | `git log --format=%an \| sort -u` → one author |
+| 2,122 commits | [`system-overview.md`](02-architecture/system-overview.md) | `git rev-list --count HEAD` → `2122` |
+| 1,265 backend tests passing | [`code/`](code/) · [`verification/netblock.py`](verification/netblock.py) | [pytest-summary](verification/pytest-summary-2026-10-03.txt): `1265 passed`, exit 0, clean checkout, network blocked (1,217 `def test_`) |
+| 38 app screens | [`system-overview.md`](02-architecture/system-overview.md) | `mobile/app/**/*.tsx` excluding `_layout.tsx` → `38` |
 
 ## Zelbi — bullet 1: the vision pipeline
 
 "Claude vision pipeline (Anthropic API, Pydantic): one photo becomes two
 validated listing drafts; fence-tolerant JSON parsing, output allowlists,
-per-request Cloudflare R2 authorization (21 failure-mode tests)."
+per-request Cloudflare R2 authorization."
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
@@ -88,7 +89,7 @@ per-request Cloudflare R2 authorization (21 failure-mode tests)."
 | Fence-tolerant JSON parsing | [`ai-boundary.md`](02-architecture/ai-boundary.md) §five stages | **⚑** no dedicated test | — | AI-002 |
 | Output allowlists | same, stage 4 | `…invalid_category_in_option_a`, `…invalid_confidence_rejected` | — | AI-002 |
 | Per-request Cloudflare R2 authorization | [`code/ai_service/routers_ai.py`](code/ai_service/routers_ai.py) | [`test_ai_object_key_ownership.py`](code/ai_service/test_ai_object_key_ownership.py) (2) | — | AI-003 |
-| "(21 failure-mode tests)" | [`code/ai_service/`](code/ai_service/) | 4 files, **10** tests | — | **Dropped by ruling (B1).** 21 was true at `3413d028`; `b6ced95` deleted the readability endpoint and its 11 tests. Today there are 10, and about half are failure cases. |
+| Tests overall | [`code/ai_service/`](code/ai_service/) | 4 files, 10 tests | — | The résumé states no count (ruling B1). It said 21 before the refresh; `b6ced95` deleted the readability endpoint and its 11 tests. |
 
 ## Zelbi — bullet 2: hybrid search
 
@@ -109,14 +110,14 @@ answers built without an LLM (22-case leak-probe set)."
 
 "Stripe claim-fee lifecycle: authorization, capture, void, refund, webhooks and
 scheduled reconciliation; adopts provider-confirmed captures instead of
-recapturing and recovers holds when webhooks are lost (60+ tests)."
+recapturing and recovers holds when webhooks are lost (110+ tests)."
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
 | Authorization, capture, void, refund, webhooks, scheduled reconciliation | [`money-path.md`](02-architecture/money-path.md) · [`marketplace-state-machine.md`](01-product-logic/marketplace-state-machine.md) · [`failure-state-matrix.md`](01-product-logic/failure-state-matrix.md) · sweepers driven by [`code/jobs/run_frequent_jobs.py`](code/jobs/run_frequent_jobs.py) | [`code/payments/`](code/payments/) | [D23](03-decisions/money/D23.md), [D211](03-decisions/money/D211.md), [D212](03-decisions/money/D212.md), [D217](03-decisions/money/D217.md), [D218](03-decisions/money/D218.md) | repo-metrics component table |
 | Adopts provider-confirmed captures instead of recapturing | [`money-path.md`](02-architecture/money-path.md) | [`test_stripe_service.py`](code/payments/test_stripe_service.py) `test_capture_adopts_already_captured_intent_without_recapturing` (:188) | [D261](03-decisions/money/D261.md) | — |
 | Recovers holds when webhooks are lost | [`04-troubleshooting/04`](04-troubleshooting/04-false-charge-message.md) | [`test_pending_payment_sweeper.py`](code/payments/test_pending_payment_sweeper.py) `test_live_hold_is_promoted_not_cancelled` (:148) | — | commit `14243ef` |
-| "(60+ tests)" | [`code/payments/`](code/payments/) | 9 files | — | **118** `def test_` across nine files (122 collected). The six files published in September hold 92. |
+| "(110+ tests)" | [`code/payments/`](code/payments/) | 9 files | — | **118** `def test_` across nine files (122 collected), listed in repo-metrics. The six files published in September hold 92. |
 
 ## Zelbi — bullet 4: production debugging
 
@@ -147,13 +148,13 @@ tests)."
 
 ## Zelbi — bullet 6: admin API and ops console
 
-"Admin API and ops console: 30 admin routes for claims, disputes, rule flags,
+"Admin API and ops console: 40+ admin routes for claims, disputes, rule flags,
 the Stripe money path and account actions with emailed notices; Sentry webhook
 with HMAC verification and a live event stream (120+ tests)."
 
 | Claim | Proven at | Test | Decision | Verification |
 |---|---|---|---|---|
-| "30 admin routes" | [`admin-and-ops.md`](02-architecture/admin-and-ops.md) §The routes · [`code/admin_ops/`](code/admin_ops/) `routers_admin*.py` | [`test_admin_authorization.py`](code/admin_ops/test_admin_authorization.py) | — | **28** in the four admin routers (30 before `b6ced95`); **43** behind the admin check across all routers |
+| "40+ admin routes" | [`admin-and-ops.md`](02-architecture/admin-and-ops.md) §The routes · [`code/admin_ops/`](code/admin_ops/) `routers_admin*.py`, [`routers_watcher.py`](code/admin_ops/routers_watcher.py), [`routers_events.py`](code/admin_ops/routers_events.py) | [`test_admin_authorization.py`](code/admin_ops/test_admin_authorization.py) | — | **43** routes depend on the admin check across all routers (repo-metrics M15). 28 of them are in the four admin routers; the other 15 are the watcher, user-event, growth-source and CX-knowledge routes. The areas the sentence names are covered by the 28. |
 | Claims, disputes, rule flags, the Stripe money path, account actions | [`admin-and-ops.md`](02-architecture/admin-and-ops.md) route table | `test_admin_{claims,disputes,flags,money,actions,listings,notes,health}.py` | [D324](03-decisions/money/D324.md), [D533](03-decisions/money/D533.md) | Disputes start by email (D533); no code path creates a dispute row ([LIMITATIONS](LIMITATIONS.md)) |
 | With emailed notices | [`admin-and-ops.md`](02-architecture/admin-and-ops.md) §Emailed notices · [`code/admin_ops/standing_notices.py`](code/admin_ops/standing_notices.py) | `test_admin_{actions,disputes,flags,listings}.py` | — | 7 routes send email |
 | Refund before the ruling | [`routers_admin.py`](code/admin_ops/routers_admin.py) :218-233 · [`money-path.md`](02-architecture/money-path.md) | [`test_admin_disputes.py`](code/admin_ops/test_admin_disputes.py) | [D324](03-decisions/money/D324.md) | **⚑** The refund-failure path has no test |
@@ -185,9 +186,9 @@ gated by Apple DeviceCheck through a native Swift module (190+ tests)."
 |---|---|---|---|
 | "Claude classifier on live Gmail push events routing every inbound email to hot lead, warm lead, vendor or spam." | [`system-overview.md`](02-architecture/system-overview.md) §A second system ("a Claude classifier triages inbound mail through a push-subscription webhook") | N-001, AI-008; categories from the private fact pack | Described, not published. The four category names come from the fact pack, not from anything here. |
 | "Added an AI chat that books appointments into Google Calendar, an AI voice receptionist," | same ("a public lead-capture chat that streams model replies and books appointments"; "a voice receptionist over SIP") | AI-009, AI-010 | Described, not published |
-| "and an invoice approval queue;" | same ("Vendor invoices that arrive by email wait in an approval queue…") | private repository `my-assistant`, `routes/invoices.py:240-283@a10aab6`: `approve_inbox_invoice` posts the invoice to job costs and marks the inbox item approved. Read 2026-10-03. | Described, not published |
+| "and an invoice approval queue (45 tests);" | same ("Vendor invoices that arrive by email wait in an approval queue…") | private repository `my-assistant`, `routes/invoices.py:240-283@a10aab6`: `approve_inbox_invoice` posts the invoice to job costs and marks the inbox item approved. Read 2026-10-03. | Described, not published |
 | "moved the company onto ERPNext" | same ("a custom Frappe app with three tested doctypes and two migration engines") | N-002 | Described, not published |
-| "(45 tests)" | same ("carrying a 45-test pytest suite") | N-001, AI-008 | **Placement, by ruling:** the 45 tests belong to the Flask operations platform, the dashboard clause, not to the ERPNext migration. The résumé moves the parenthetical there. |
+| "(45 tests)", on the dashboard clause | same ("carrying a 45-test pytest suite") | N-001, AI-008 | The 45 tests belong to the Flask operations platform (the chat, receptionist and invoice queue), not to the ERPNext migration, which is where the parenthetical sat before the refresh. Described, not published. |
 
 ## Earlier career
 

@@ -7,7 +7,7 @@ Compiled by hashing each output file against the private sources, so
 unchanged". Anything not byte-identical is listed as authored or modified and,
 if it came from a private file, has an entry in §1 or §2.
 
-- **284 files** · 158 verbatim · 126 authored or modified
+- **284 files** · 157 verbatim · 127 authored or modified
 - Source commit for all Zelbi material: `88757212b5ea2395913cee61d81b05822818484a`
   (`8875721`, 2026-10-03). Every Zelbi-sourced file was hashed against the
   tree at that commit, read from a clean clone, never from a working tree.
@@ -77,6 +77,7 @@ code is verbatim.
 | `tooling/agents/{build-error-resolver,code-reviewer,planner,security-reviewer}.md`, `tooling/rules-registry/{my-assistant-rules,RULE-FIX-BLUEPRINT-v2,RULE-FIX-BLUEPRINT-v3}.md` | The construction company's real name — 11 occurrences across 7 files (September, unchanged). | "the construction company" / "construction-company operations dashboard". |
 | Everywhere | The company owner's real name. | Never written. |
 | `05-process/handoff-protocol.md` (2 paths), `tooling/skills/handoff-protocol/SKILL.md` (2 paths) | The company's initialism in a private note directory path (September, unchanged). | `<project>`. |
+| `tooling/skills/SYNC_MAP.md` line 8 | The company's two-letter initialism in a table cell, missed in September and published since. Removed 2026-10-04; the earlier copy stays in git history. | "the client". |
 | `code/admin_ops/test_watcher.py` lines 18, 73, 224, 318, 327 | Zelbi's Sentry organisation slug, as a subdomain (4) and in an API path (1). | `example-org`. |
 | `code/credits_devicecheck/test_devicecheck_service.py` line 17 | Zelbi's real Apple Developer Team ID, used as the test's issuer. The same literal is the default in the unpublished `config.py`. | `TEAMID0000`. |
 
@@ -638,7 +639,7 @@ changed since 2026-09-03 carry that snapshot's recorded row.
 | `rules-registry/tools-erpnext-desk.md` | `~/Projects/ai-rules/tools-erpnext-desk.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/tools-frappe-cloud.md` | `~/Projects/ai-rules/tools-frappe-cloud.md` (snapshot 2026-09-03) | verbatim |
 | `rules-registry/zelbi-rules.md` | `~/Projects/ai-rules/zelbi-rules.md` (snapshot 2026-09-03) | verbatim |
-| `skills/SYNC_MAP.md` | `~/.claude/skills/SYNC_MAP.md` (snapshot 2026-09-03) | verbatim |
+| `skills/SYNC_MAP.md` | modified from `~/.claude/skills/SYNC_MAP.md` (snapshot 2026-09-03) (§1.4) | authored / modified |
 | `skills/cowork-prompts/SKILL.md` | `~/.claude/skills/cowork-prompts/SKILL.md` (snapshot 2026-09-03) | verbatim |
 | `skills/debug-mode/SKILL.md` | `~/.claude/skills/debug-mode/SKILL.md` (snapshot 2026-09-03) | verbatim |
 | `skills/handoff-protocol/SKILL.md` | `~/.claude/skills/handoff-protocol/SKILL.md` (snapshot 2026-09-03) | verbatim |
