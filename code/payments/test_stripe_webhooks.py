@@ -338,7 +338,7 @@ def test_payment_intent_payment_failed_logs_warning_returns_200(
     assert claim.status == "pending_payment"
 
 
-def test_payment_intent_payment_failed_pushes_to_picker(
+def test_payment_intent_payment_failed_sends_no_push(
     mocker, client, stripe_construct_event, pending_payment_claim, claim_in_db,
 ):
     mock_push = mocker.patch("app.routers.stripe_webhooks.send_push")
@@ -352,8 +352,209 @@ def test_payment_intent_payment_failed_pushes_to_picker(
         content=b"{}",
     )
     assert resp.status_code == 200
-    mock_push.assert_called_once()
-    call = mock_push.call_args
-    assert call.args[1] == pending_payment_claim.picker_id
-    assert call.args[5] == "payment_failed"
-    assert call.args[6] == pending_payment_claim.id
+    mock_push.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# D539 step 3, slice 2 — payment_intent.canceled on a credit release.
+# ---------------------------------------------------------------------------
+
+from datetime import timezone as _tz  # noqa: E402
+
+from app.services.stripe_service import CREDIT_RELEASE_METADATA_KEY  # noqa: E402
+
+
+def _canceled_event_with_metadata(pi_id: str, metadata: dict) -> dict:
+    return {
+        "type": "payment_intent.canceled",
+        "data": {"object": {"id": pi_id, "metadata": metadata}},
+    }
+
+
+def _give_credit(db_session, user) -> models.Credit:
+    now = datetime.now(_tz.utc)
+    credit = models.Credit(
+        user_id=user.id, kind="giveaway", earned_at=now, expires_at=now + timedelta(days=90),
+    )
+    db_session.add(credit)
+    db_session.commit()
+    db_session.refresh(credit)
+    return credit
+
+
+def _webhook_logger():
+    return __import__("app.routers.stripe_webhooks", fromlist=["logger"]).logger
+
+
+def _post(client, stripe_construct_event, event):
+    stripe_construct_event.return_value = event
+    return client.post(
+        "/webhooks/stripe", headers={"Stripe-Signature": "t=1,v1=ok"}, content=b"{}",
+    )
+
+
+def test_canceled_on_covered_completed_claim_is_expected_no_warning_no_write(
+    client, stripe_construct_event, authorized_claim, picker_user, db_session,
+    claim_in_db, mocker,
+):
+    """Every covered completion fires this webhook: completed + credit_id + captured_at
+    null is the expected outcome, not an unexpected status."""
+    credit = _give_credit(db_session, picker_user)
+    db_session.execute(
+        text(
+            "UPDATE claims SET status='completed', completed_at=timezone('utc', now()), "
+            "credit_id=:c WHERE id=:cid"
+        ),
+        {"c": credit.id, "cid": authorized_claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    pi_id = authorized_claim.stripe_payment_intent_id
+    warning_spy = mocker.spy(_webhook_logger(), "warning")
+    error_spy = mocker.spy(_webhook_logger(), "error")
+
+    resp = _post(
+        client, stripe_construct_event,
+        _canceled_event_with_metadata(pi_id, {CREDIT_RELEASE_METADATA_KEY: str(authorized_claim.id)}),
+    )
+
+    assert resp.status_code == 200
+    claim = claim_in_db(authorized_claim.id)
+    assert claim.status == "completed"
+    assert claim.captured_at is None
+    warnings = [c.args[0] for c in warning_spy.call_args_list if c.args]
+    assert not any("stripe_webhook_pi_canceled_unexpected_claim_status" in p for p in warnings)
+    errors = [c.args[0] for c in error_spy.call_args_list if c.args]
+    assert not any("stripe_autovoid_after_window" in p for p in errors)
+
+
+@pytest.mark.parametrize(
+    "status, stamp",
+    [("no_show", "no_show_at"), ("auto_captured", "auto_captured_at")],
+)
+def test_canceled_on_released_no_show_or_auto_captured_claim_logs_info_not_warning(
+    client, stripe_construct_event, authorized_claim, picker_user, db_session,
+    claim_in_db, mocker, status, stamp,
+):
+    """D548: a covered no-show and a covered silence completion release the hold too, so
+    this webhook fires for them. credit_id set and captured_at null on either status is
+    the expected release: the info event, no unexpected-status warning, no write."""
+    credit = _give_credit(db_session, picker_user)
+    db_session.execute(
+        text(
+            f"UPDATE claims SET status=:status, {stamp}=timezone('utc', now()), "
+            "credit_id=:c WHERE id=:cid"
+        ),
+        {"status": status, "c": credit.id, "cid": authorized_claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    pi_id = authorized_claim.stripe_payment_intent_id
+    info_spy = mocker.spy(_webhook_logger(), "info")
+    warning_spy = mocker.spy(_webhook_logger(), "warning")
+
+    resp = _post(
+        client, stripe_construct_event,
+        _canceled_event_with_metadata(pi_id, {CREDIT_RELEASE_METADATA_KEY: str(authorized_claim.id)}),
+    )
+
+    assert resp.status_code == 200
+    claim = claim_in_db(authorized_claim.id)
+    assert claim.status == status
+    assert claim.captured_at is None
+    infos = [c.args[0] for c in info_spy.call_args_list if c.args]
+    assert any("stripe_webhook_pi_canceled_credit_release" in p for p in infos)
+    warnings = [c.args[0] for c in warning_spy.call_args_list if c.args]
+    assert not any("stripe_webhook_pi_canceled_unexpected_claim_status" in p for p in warnings)
+
+
+def test_canceled_with_our_mark_on_live_claim_past_window_is_not_a_d62_alarm(
+    client, stripe_construct_event, authorized_claim, picker_user, db_session,
+    claim_in_db, mocker,
+):
+    """The route's commit is in flight: the claim still reads authorized and the pickup
+    was 25 hours ago, which is exactly the D62 shape. The mark says the cancel is ours:
+    no alarm, no cancelled write."""
+    credit = _give_credit(db_session, picker_user)
+    db_session.execute(
+        text(
+            "UPDATE claims SET pickup_scheduled_at = (timezone('utc', now()) - "
+            "INTERVAL '25 hours'), credit_id=:c WHERE id=:cid"
+        ),
+        {"c": credit.id, "cid": authorized_claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    pi_id = authorized_claim.stripe_payment_intent_id
+    error_spy = mocker.spy(_webhook_logger(), "error")
+    warning_spy = mocker.spy(_webhook_logger(), "warning")
+
+    resp = _post(
+        client, stripe_construct_event,
+        _canceled_event_with_metadata(pi_id, {CREDIT_RELEASE_METADATA_KEY: str(authorized_claim.id)}),
+    )
+
+    assert resp.status_code == 200
+    claim = claim_in_db(authorized_claim.id)
+    assert claim.status == "authorized"
+    assert claim.cancelled_at is None
+    errors = [c.args[0] for c in error_spy.call_args_list if c.args]
+    assert not any("stripe_autovoid_after_window" in p for p in errors)
+    warnings = [c.args[0] for c in warning_spy.call_args_list if c.args]
+    assert not any("stripe_webhook_pi_canceled_unexpected_claim_status" in p for p in warnings)
+
+
+def test_canceled_without_our_mark_on_live_claim_past_window_keeps_d62_alarm(
+    client, stripe_construct_event, authorized_claim, picker_user, db_session,
+    claim_in_db, mocker,
+):
+    """Metadata present but no release mark for THIS claim (a reserved credit does not
+    change this): Stripe's own cancel, today's D62 behaviour unchanged."""
+    credit = _give_credit(db_session, picker_user)
+    db_session.execute(
+        text(
+            "UPDATE claims SET pickup_scheduled_at = (timezone('utc', now()) - "
+            "INTERVAL '25 hours'), credit_id=:c WHERE id=:cid"
+        ),
+        {"c": credit.id, "cid": authorized_claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    pi_id = authorized_claim.stripe_payment_intent_id
+    error_spy = mocker.spy(_webhook_logger(), "error")
+
+    resp = _post(
+        client, stripe_construct_event,
+        _canceled_event_with_metadata(
+            pi_id, {"claim_id": str(authorized_claim.id), CREDIT_RELEASE_METADATA_KEY: str(uuid.uuid4())},
+        ),
+    )
+
+    assert resp.status_code == 200
+    assert claim_in_db(authorized_claim.id).status == "cancelled"
+    errors = [c.args[0] for c in error_spy.call_args_list if c.args]
+    assert any("stripe_autovoid_after_window" in p for p in errors)
+
+
+def test_canceled_on_charged_completed_claim_still_warns(
+    client, stripe_construct_event, authorized_claim, db_session, claim_in_db, mocker,
+):
+    """A completed claim WITH a capture on record is not a release: the unexpected-status
+    warning stays exactly as today."""
+    db_session.execute(
+        text(
+            "UPDATE claims SET status='completed', completed_at=timezone('utc', now()), "
+            "captured_at=timezone('utc', now()) WHERE id=:cid"
+        ),
+        {"cid": authorized_claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    warning_spy = mocker.spy(_webhook_logger(), "warning")
+
+    resp = _post(client, stripe_construct_event, _canceled_event(authorized_claim.stripe_payment_intent_id))
+
+    assert resp.status_code == 200
+    assert claim_in_db(authorized_claim.id).status == "completed"
+    warnings = [c.args[0] for c in warning_spy.call_args_list if c.args]
+    assert any("stripe_webhook_pi_canceled_unexpected_claim_status" in p for p in warnings)

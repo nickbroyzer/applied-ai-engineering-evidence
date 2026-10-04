@@ -32,12 +32,11 @@ import re
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.models import Claim, Report
+from app.models import Report
 
 
 # Action allowlist (per canonical Phase 6 STEP 2 spec).
 ACTION_FLAG_FOR_REVIEW = "flag_for_review"
-ACTION_AUTO_SUSPEND = "auto_suspend"
 ACTION_RESTRICT_LISTING = "restrict_listing"
 
 # D264 — listing tempo guard, replaces the retired GPS-spam rule.
@@ -45,6 +44,51 @@ ACTION_RESTRICT_LISTING = "restrict_listing"
 # consecutive listings, and a per-day ceiling.
 MIN_LISTING_INTERVAL_SECONDS = WITHHELD
 MAX_LISTINGS_PER_DAY = WITHHELD
+
+# Admin-facing name and meaning for every value write_auto_flag stores in
+# reports.triggered_rule. The Control Center reads these through GET /admin/flags
+# and GET /admin/listings/{id}; the dashboard keeps no copy.
+RULE_DEFINITIONS: dict[str, tuple[str, str]] = {
+    "rule_1": (
+        "New account posting by hand",
+        "Retired in Session 376 (D270); no longer fires",
+    ),
+    "rule_2": (
+        "Listing tempo",
+        "Listings posted faster than a person can post them, or more than the (withheld) daily ceiling",
+    ),
+    "rule_3": (
+        "Contact or payment",
+        "A message carried a phone number, email, handle, link, off-app payment term, "
+        "urgency pattern or pickup time, and was blocked",
+    ),
+    # Not active: its only caller, run_claim_creation_checks, was never called and was
+    # deleted (D568, Nick's call 2026-10-03). The number is kept.
+    "rule_4": (
+        "Repeated no-shows",
+        "Not active",
+    ),
+    "rule_5": (
+        "Duplicate photo",
+        "Deferred past MVP (canonical decision 11); does not fire",
+    ),
+    "rule_6": (
+        "Pricing on a free listing",
+        "A listing's title or description mentions a price, a currency or best offer",
+    ),
+    "block_ended_claim": (
+        "Block ended a claim",
+        "A user blocked the other party while a claim between them was live, and the block cancelled it",
+    ),
+}
+_UNKNOWN_RULE_TEXT = "No rule definition in the backend for this value"
+
+
+def rule_definition(triggered_rule: str | None) -> tuple[str, str]:
+    """(label, text) for a stored triggered_rule; an unknown value labels as itself."""
+    if triggered_rule is None:
+        return ("No rule recorded", _UNKNOWN_RULE_TEXT)
+    return RULE_DEFINITIONS.get(triggered_rule, (triggered_rule, _UNKNOWN_RULE_TEXT))
 
 
 @dataclass(frozen=True)
@@ -110,18 +154,19 @@ def normalize_for_match(content: str) -> str:
 
 # rule table withheld
 #
-# SHAPE OF WHAT WAS REMOVED (source lines 104-417 of the original file, 314
+# SHAPE OF WHAT WAS REMOVED (source lines 148-461 of the original file, 314
 # lines): a flat table of module-level compiled regular expressions, one or
 # more per detection category, each built from an alternation of literal
 # trigger phrases and their evasion variants. The categories are the ones the
-# dispatchers below reference by name: external payment brands, phone numbers
+# dispatchers below reference by name: external payment brands (including a
+# separator-squashed brand check for "p ay pal"-style spacing), phone numbers
 # and phone solicitation (including spaced and spelled-out digits), urgency,
 # currency and pricing keywords, email addresses and email solicitation,
 # social handles and handle solicitation, links, weekdays / relative days /
-# clock times / dayparts / loose hours / meeting verbs (which combine into the
-# scheduling-intent signal), street addresses, cancel and confirm intents, and
-# six picker-question deflect categories (location, availability, payment,
-# schedule, pickup process, reschedule, cancel).
+# clock times / dayparts / loose hours / proposals / meeting verbs (which
+# combine into the scheduling-intent signal), street addresses, cancel and
+# confirm intents, and the picker-question deflect categories (location,
+# availability, payment, schedule, pickup process, reschedule, cancel).
 #
 # The patterns themselves are the product's anti-abuse surface: publishing them
 # publishes the evasion recipe. The normalizer above (which decodes the evasion
@@ -298,40 +343,6 @@ def check_signal_confirm_intent(content: str) -> tuple[bool, str | None]:
     if _CONFIRM_REGEX.search(content):
         return (True, "confirm")
     return (False, None)
-
-
-def check_rule_4_repeated_no_shows(
-    db: Session,
-    picker_user_id: UUID,
-    now: datetime | None = None,
-) -> tuple[bool, str | None, str | None]:
-    """Rule 4 — Repeated no-shows.
-
-    Trigger: 3+ claims with status == 'no_show' for the user as picker where
-    no_show_at falls within the last 30 days.
-
-    Locked Session 88: STEP 2 fires restrict_listing; STEP 3 layers cooldown
-    and suspension state on top.
-    """
-    if now is None:
-        now = datetime.utcnow()
-    cutoff = now - timedelta(days=30)
-    count = (
-        db.query(Claim)
-        .filter(
-            Claim.picker_id == picker_user_id,
-            Claim.status == "no_show",
-            Claim.no_show_at >= cutoff,
-        )
-        .count()
-    )
-    if count >= 3:
-        return (
-            True,
-            "Repeated no-shows in trailing 30 days",
-            ACTION_RESTRICT_LISTING,
-        )
-    return (False, None, None)
 
 
 def check_rule_5_duplicate_photo_hash(
@@ -566,16 +577,3 @@ def write_auto_flag(
             triggered_rule=rule_name,
         )
     )
-
-
-def run_claim_creation_checks(user: Any, db: Session) -> list[ScamCheckResult]:
-    """Run rules that fire on claim creation: rule 4."""
-    results: list[ScamCheckResult] = []
-    triggered, reason, action = check_rule_4_repeated_no_shows(
-        db, picker_user_id=user.id,
-    )
-    if triggered:
-        results.append(ScamCheckResult(
-            "rule_4_repeated_no_shows", True, reason, action,
-        ))
-    return results

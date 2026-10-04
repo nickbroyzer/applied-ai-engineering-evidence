@@ -1,25 +1,5 @@
 import { api } from '@/utils/api';
 
-/** Mirrors backend `InboxItem` (backend/app/schemas/messages.py). */
-export type InboxItem = {
-  listing_id: string;
-  listing_title: string;
-  listing_photo_url: string | null;
-  other_user_id: string;
-  other_user_name: string;
-  other_user_avatar_url: string | null;
-  other_user_last_active_at: string | null;
-  user_role: 'giver' | 'picker';
-  last_message_preview: string;
-  last_message_created_at: string;
-  unread_count: number;
-};
-
-/** Mirrors backend `UnreadCountResponse` (backend/app/schemas/messages.py). */
-export type UnreadCountResponse = {
-  count: number;
-};
-
 /** Mirrors backend `MessageRead` (backend/app/schemas/messages.py). */
 export type MessageRead = {
   id: string;
@@ -44,22 +24,6 @@ export type ThreadResponse = {
   other_user_avatar_url: string | null;
   other_user_last_active_at: string | null;
 };
-
-export async function fetchInbox(): Promise<InboxItem[]> {
-  const res = await api.get<InboxItem[]>('/messages/inbox');
-  return res.data;
-}
-
-export async function fetchUnreadCount(): Promise<number> {
-  try {
-    const res = await api.get<UnreadCountResponse>('/messages/unread-count');
-    return res.data.count;
-  } catch {
-    // Badge count is non-critical UI. A transient 401 during an account
-    // switch, or any network blip, must never throw an uncaught rejection.
-    return 0;
-  }
-}
 
 export async function fetchThread(
   listingId: string,

@@ -2,11 +2,13 @@
 import uuid
 from datetime import datetime, timedelta
 
+import pytest
 import stripe
 from sqlalchemy import text
 
 from app import models
 from app.routers.claims import KNOWN_DISCLOSURE_VERSIONS
+from app.services import strike_service
 from app.services.strike_service import (
     _ROLLING_WINDOW_DAYS,
     _STRIKE_THRESHOLD,
@@ -15,6 +17,19 @@ from app.services.strike_service import (
 )
 
 _DISCLOSURE_VERSION = next(iter(KNOWN_DISCLOSURE_VERSIONS))
+
+
+@pytest.fixture(autouse=True)
+def sent_emails(monkeypatch) -> list[dict]:
+    recorded: list[dict] = []
+
+    def _fake_send_email(*, to, subject, html, text=None):
+        recorded.append({"to": to, "subject": subject, "html": html, "text": text})
+
+    # strike_service imports send_email directly (not via standing_notices),
+    # so the stub target is the name bound in strike_service's own namespace.
+    monkeypatch.setattr(strike_service, "send_email", _fake_send_email)
+    return recorded
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +171,34 @@ def test_trips_at_3rd_inside_window_cancel(
     user = db_session.get(models.User, picker_user.id)
     assert user.picker_timeout_until is None
     mock_stripe_pi_cancel.assert_not_called()
+
+
+def test_strike_records_action_and_sends_email(
+    db_session, picker_user, sent_emails,
+):
+    """Applying a strike writes one admin_actions row (action=timeout, actor
+    null, reason containing "paused until") and sends one email."""
+    for _ in range(_STRIKE_THRESHOLD):
+        _add_no_show_event(db_session, picker_user.id)
+
+    check_and_apply_strike(db_session, picker_user.id)
+    db_session.commit()
+    db_session.expire_all()
+
+    action = (
+        db_session.query(models.AdminAction)
+        .filter(
+            models.AdminAction.subject_user_id == picker_user.id,
+            models.AdminAction.action == "timeout",
+        )
+        .one()
+    )
+    assert action.actor_user_id is None
+    assert "paused until" in action.reason
+    assert action.notice_sent is True
+
+    assert len(sent_emails) == 1
+    assert sent_emails[0]["subject"] == "Claims paused for 7 days"
 
 
 def test_mixed_events_count_correctly(db_session, picker_user):
@@ -325,7 +368,7 @@ def test_create_claim_403_when_picker_in_timeout(
         },
     )
     assert resp.status_code == 403
-    assert resp.json()["detail"] == "picker_in_timeout"
+    assert resp.json()["detail"].startswith("Claims are paused until ")
 
 
 def test_create_claim_succeeds_when_timeout_expired(

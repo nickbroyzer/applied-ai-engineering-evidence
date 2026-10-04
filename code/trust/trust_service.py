@@ -1,22 +1,15 @@
-# ---------------------------------------------------------------------------
-# SANITIZED FOR PUBLICATION. This file is copied verbatim from the private
-# zelbi.ai repository except where a line reads "withheld". Withheld values
-# are tuned product constants, not secrets; the logic that consumes them is
-# unchanged. See MANIFEST.md for the exact line ranges and reasons.
-# ---------------------------------------------------------------------------
 """Trust score recalculation — locked model.
 
 Rules (all locked, do not modify without a new LOCKED decision):
-- A completed transaction is worth a flat _POINTS_PER_COMPLETION points.
-- Deductions are keyed by event type: late_cancel, no_show,
-  dispute_lost_picker, dispute_lost_giver (the two dispute roles weighted
-  equally). Tuned constants withheld.
+- A completed transaction is worth a flat 10 points.
+- Deductions: late_cancel 20, no_show 40, dispute_lost_picker 70,
+  dispute_lost_giver 70.
 - Infractions sorted by created_at ASC; the oldest UNHEALED infraction is free.
-- Healing: an infraction heals once _HEAL_THRESHOLD clean completion events exist with
+- Healing: an infraction heals once 5 clean completion events exist with
   created_at strictly after that infraction's created_at. Healing removes
   its deduction and returns it to the free-infraction pool, but never
   returns points.
-- Final score clamped between _SCORE_FLOOR and _SCORE_CEILING.
+- Final score clamped between -999 and 999.
 """
 from collections.abc import Iterable
 from uuid import UUID
@@ -25,23 +18,20 @@ from sqlalchemy.orm import Session
 
 from app.models import TrustEvent, User
 
-# Tuned constants withheld. The four event types and their relative ordering
-# (late_cancel < no_show < dispute_lost) are the design; the exact weights are
-# product tuning and are not published.
 _DEDUCTIONS: dict[str, int] = {
-    "late_cancel": WITHHELD,
-    "no_show": WITHHELD,
-    "dispute_lost_picker": WITHHELD,
-    "dispute_lost_giver": WITHHELD,
+    "late_cancel": 20,
+    "no_show": 40,
+    "dispute_lost_picker": 70,
+    "dispute_lost_giver": 70,
 }
 
-_HEAL_THRESHOLD = WITHHELD
+_HEAL_THRESHOLD = 5
 _CLEAN_TYPES = frozenset({"pickup_completed", "giveaway_completed"})
 _INFRACTION_TYPES = frozenset(_DEDUCTIONS)
 
-_POINTS_PER_COMPLETION = WITHHELD
-_SCORE_FLOOR = -WITHHELD
-_SCORE_CEILING = WITHHELD
+_POINTS_PER_COMPLETION = 10
+_SCORE_FLOOR = -999
+_SCORE_CEILING = 999
 
 
 def score_from_events(events: Iterable[TrustEvent]) -> int:

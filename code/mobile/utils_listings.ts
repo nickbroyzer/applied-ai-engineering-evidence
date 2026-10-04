@@ -42,6 +42,8 @@ export type ListingResponse = {
   completed_at: string | null;
   /** IANA zone name (e.g. "America/Los_Angeles"). Only populated on the single-listing GET. */
   timezone?: string | null;
+  /** Literal count of saved rows. Single-listing GET only; null for the giver. */
+  saved_count?: number | null;
 };
 
 export type NearbyListingItem = {
@@ -58,6 +60,8 @@ export type NearbyListingItem = {
   created_at: string;
   expires_at: string;
   deadline_kind?: string;
+  /** Optional so a feed from an older backend still parses. */
+  auto_relist?: boolean;
 };
 
 /** Listings expiring within this window show the "AVAILABLE NOW" badge. */
@@ -67,14 +71,6 @@ export function isExpiringSoon(expiresAt: string | undefined): boolean {
   if (!expiresAt) return false;
   const remaining = new Date(expiresAt).getTime() - Date.now();
   return remaining > 0 && remaining <= EXPIRING_SOON_MS;
-}
-
-export function showAvailableBadge(item: {
-  expires_at?: string;
-  deadline_kind?: string;
-}): boolean {
-  if (item.deadline_kind === 'today') return true;
-  return isExpiringSoon(item.expires_at);
 }
 
 export type NearbyListingsResponse = {
@@ -114,16 +110,6 @@ export async function fetchNearbyListings(
 
 export async function getListing(id: string): Promise<ListingResponse> {
   const res = await api.get<ListingResponse>(`/listings/${id}`);
-  return res.data;
-}
-
-export async function getMyClaimedActiveListings(): Promise<ListingResponse[]> {
-  const res = await api.get<ListingResponse[]>('/listings/claimed-active-mine');
-  return res.data;
-}
-
-export async function getMyGivenListings(): Promise<ListingResponse[]> {
-  const res = await api.get<ListingResponse[]>('/listings/given-mine');
   return res.data;
 }
 

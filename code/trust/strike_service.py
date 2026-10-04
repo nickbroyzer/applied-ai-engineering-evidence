@@ -1,14 +1,8 @@
-# ---------------------------------------------------------------------------
-# SANITIZED FOR PUBLICATION. This file is copied verbatim from the private
-# zelbi.ai repository except where a line reads "withheld". Withheld values
-# are tuned product constants, not secrets; the logic that consumes them is
-# unchanged. See MANIFEST.md for the exact line ranges and reasons.
-# ---------------------------------------------------------------------------
 """
 D21 picker strike enforcement.
 
 check_and_apply_strike inspects the rolling 30-day no_show event count for a
-picker, and if the threshold is reached, sets picker_timeout_until and
+picker, and if the threshold (3) is reached, sets picker_timeout_until and
 fans out cancellations across the picker's other in-flight claims.
 
 Called from mark_no_show (per D21 survey Q3) and cancel_claim's inside-window
@@ -26,24 +20,24 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models import Claim, Listing, TrustEvent, User
+from app.services.email_templates import branded_email
+from app.services.email_service import send_email
 from app.services.notification_service import send_push
+from app.services.standing_notices import record_action
 from app.services.stripe_service import cancel_payment_intent
 
 logger = logging.getLogger(__name__)
 
 _FAN_OUT_STATUSES = ("pending_payment", "authorized", "pickup_scheduled")
-# Tuned constants withheld (D21). The rule's shape — a strike count inside a
-# rolling window producing a fixed-duration timeout — is what the design says.
-_ROLLING_WINDOW_DAYS = WITHHELD
-_TIMEOUT_DAYS = WITHHELD
-_STRIKE_THRESHOLD = WITHHELD
+_ROLLING_WINDOW_DAYS = 30
+_TIMEOUT_DAYS = 7
+_STRIKE_THRESHOLD = 3
 
 # D67 LOCKED — picker-only auto-suspension thresholds (90-day rolling window
 # of dispute_lost_picker trust events).
-# Tuned constants withheld (D67).
-_DISPUTE_ROLLING_WINDOW_DAYS = WITHHELD
-_DISPUTE_WARNING_THRESHOLD = WITHHELD
-_DISPUTE_SUSPEND_THRESHOLD = WITHHELD
+_DISPUTE_ROLLING_WINDOW_DAYS = 90
+_DISPUTE_WARNING_THRESHOLD = 2
+_DISPUTE_SUSPEND_THRESHOLD = 3
 
 # D67 + §10 notification copy — verbatim push bodies.
 _D67_WARNING_PUSH_TITLE = "Account warning"
@@ -118,6 +112,52 @@ def check_and_apply_strike(db: Session, picker_id: UUID) -> None:
 
     db.flush()
 
+    if user is not None:
+        until_date = (now + timedelta(days=_TIMEOUT_DAYS)).strftime("%b %-d, %Y")
+        # PLACEHOLDER COPY — Nick's standard message replaces this.
+        reason = (
+            f"You missed three pickups in 30 days, so claims are paused until "
+            f"{until_date}. Any other claims you had open were cancelled and "
+            f"their holds released."
+        )
+        row = record_action(db, actor=None, subject=user, action="timeout", reason=reason)
+        db.flush()
+        try:
+            send_push(
+                db,
+                user.id,
+                "Claims paused for 7 days",
+                reason,
+                {"type": "picker_timeout"},
+                "picker_timeout",
+                user.id,
+            )
+            # notify() commits, which would flush this function's uncommitted
+            # picker_timeout/fan-out writes early — replicated here without the
+            # commit; the caller's own db.commit() carries notice_sent.
+            if user.deleted_at is None and user.email:
+                html_body, text_body = branded_email(
+                    heading="Claims paused for 7 days",
+                    paragraphs=[reason],
+                    reference=str(row.id)[:8].upper(),
+                )
+                try:
+                    send_email(
+                        to=user.email,
+                        subject="Claims paused for 7 days",
+                        html=html_body,
+                        text=text_body,
+                    )
+                    row.notice_sent = True
+                except Exception as exc:
+                    logger.warning(
+                        "strike timeout notice failed to send: action_id=%s exc_class=%s",
+                        row.id,
+                        type(exc).__name__,
+                    )
+        except Exception:
+            logger.exception("strike_timeout_notification_failed")
+
     logger.info(
         json.dumps(
             {
@@ -141,8 +181,8 @@ def check_and_apply_dispute_suspension(
     """D67 — picker-only auto-suspension by 90-day rolling dispute count.
 
     Counts dispute_lost_picker trust events for this picker in the trailing
-    a rolling window. At the warning threshold, fires a warning push (no column write — internal
-    flag only). At the suspension threshold, flips is_suspended=True and fires the
+    90 days. At threshold 2, fires a warning push (no column write — internal
+    flag only). At threshold 3, flips is_suspended=True and fires the
     suspension push. Idempotent: re-running on an already-suspended user
     does nothing; warning push is day-bucket idempotent via the existing
     notification_idempotency table.
@@ -179,8 +219,11 @@ def check_and_apply_dispute_suspension(
             return
 
         user.is_suspended = True
-        user.suspension_reason = "auto_suspended_dispute_threshold"
+        user.suspension_reason = _D67_SUSPENSION_PUSH_BODY
         db.add(user)
+        row = record_action(
+            db, actor=None, subject=user, action="suspend", reason=_D67_SUSPENSION_PUSH_BODY
+        )
         db.flush()
         logger.info(
             json.dumps(
@@ -203,9 +246,37 @@ def check_and_apply_dispute_suspension(
             )
         except Exception:
             logger.exception("send_push_failed_dispute_suspension")
+
+        # notify() commits; the same early-commit conflict as check_and_apply_strike
+        # applies here (the admin /resolve caller commits after this returns), so
+        # the notify body is replicated without its commit.
+        if user.deleted_at is None and user.email:
+            html_body, text_body = branded_email(
+                heading="Account disabled",
+                paragraphs=[_D67_SUSPENSION_PUSH_BODY],
+                reference=str(row.id)[:8].upper(),
+            )
+            try:
+                send_email(
+                    to=user.email,
+                    subject="Account disabled",
+                    html=html_body,
+                    text=text_body,
+                )
+                row.notice_sent = True
+            except Exception as exc:
+                logger.warning(
+                    "dispute suspension notice failed to send: action_id=%s exc_class=%s",
+                    row.id,
+                    type(exc).__name__,
+                )
         return
 
     if count >= _DISPUTE_WARNING_THRESHOLD:
+        warn_row = record_action(
+            db, actor=None, subject=user, action="warn", reason=_D67_WARNING_PUSH_BODY
+        )
+        db.flush()
         try:
             send_push(
                 db,
@@ -222,4 +293,25 @@ def check_and_apply_dispute_suspension(
             )
         except Exception:
             logger.exception("send_push_failed_dispute_warning")
+
+        if user.deleted_at is None and user.email:
+            html_body, text_body = branded_email(
+                heading="Account warning",
+                paragraphs=[_D67_WARNING_PUSH_BODY],
+                reference=str(warn_row.id)[:8].upper(),
+            )
+            try:
+                send_email(
+                    to=user.email,
+                    subject="Account warning",
+                    html=html_body,
+                    text=text_body,
+                )
+                warn_row.notice_sent = True
+            except Exception as exc:
+                logger.warning(
+                    "dispute warning notice failed to send: action_id=%s exc_class=%s",
+                    warn_row.id,
+                    type(exc).__name__,
+                )
         return

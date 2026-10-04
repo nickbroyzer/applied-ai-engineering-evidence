@@ -114,18 +114,15 @@ def test_location_question_says_address_not_shown(db_session, golden_cases):
     assert not re.search(r"450 ?m|fuzz|seed|zoom", composed.answer_text, re.IGNORECASE)
 
 
-# --- 5: pickup-photo question says no photo is required.
-
-
-def test_pickup_photo_question_says_no_photo_required(db_session, golden_cases):
+# --- 5: pickup-photo question says the photo completes the pickup (D525, D536).
+def test_pickup_photo_question_says_photo_completes_pickup(db_session, golden_cases):
     composed = compose_answer(
         db_session, "Do I need to take a photo to confirm pickup?", "public"
     )
     assert not composed.refused
     assert "docs/policy/public/pickup-confirmation.md" in composed.cited_doc_paths
-    assert re.search(
-        r"no photo|don't need to photograph", composed.answer_text, re.IGNORECASE
-    )
+    assert re.search(r"photo", composed.answer_text, re.IGNORECASE)
+    assert re.search(r"completes the pickup", composed.answer_text, re.IGNORECASE)
     assert not re.search(r"geofence|evidentiar", composed.answer_text, re.IGNORECASE)
 
 
@@ -348,10 +345,12 @@ def test_public_answer_body_is_display_friendly_plain_text(db_session, corpus):
     assert not composed.refused
     visible_body = composed.answer_text.split(f"\n\n{SOURCES_HEADER}", 1)[0]
 
-    assert "If the giver doesn't show up" in visible_body
-    assert "You won't be charged for a missed pickup" in visible_body
+    # Session 463 (D536): refreshed wording; the article is fully built, so no
+    # "still being added" note.
+    assert "doesn't show up" in visible_body
+    assert "never held against you" in visible_body
     assert "support@zelbi.ai" in visible_body
-    assert "This part is still being added to the app" in visible_body
+    assert "This part is still being added to the app" not in visible_body
     assert "Some of what's described here" not in visible_body
 
     assert "# " not in visible_body

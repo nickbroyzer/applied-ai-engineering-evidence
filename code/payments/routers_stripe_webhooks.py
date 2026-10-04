@@ -13,7 +13,11 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import Claim, Listing, Saved
 from app.services.notification_service import send_push
-from app.services.stripe_service import _hold_expires_at_from_payment_intent
+from app.services.referral_service import consume_invite_code
+from app.services.stripe_service import (
+    CREDIT_RELEASE_METADATA_KEY,
+    _hold_expiry_and_card_fingerprint_from_payment_intent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +73,18 @@ def _handle_amount_capturable_updated(db: Session, obj: dict[str, Any]) -> None:
 
     claim.status = "authorized"
     claim.authorized_at = datetime.now(timezone.utc)
-    hold_expires_at = _hold_expires_at_from_payment_intent(obj)
+    # One charge read yields both the hold expiry and, D542 (3), the card fingerprint the
+    # card rule checks when a giveaway credit is spent. A missing fingerprint never blocks
+    # the authorization; the claim then carries none and the rule does not apply.
+    hold_expires_at, card_fingerprint = _hold_expiry_and_card_fingerprint_from_payment_intent(obj)
     if hold_expires_at is not None:
         claim.hold_expires_at = hold_expires_at
+    if card_fingerprint is not None:
+        claim.card_fingerprint = card_fingerprint
     db.add(claim)
+    # D549 (survey C): a claim carrying a friend's invite code consumes it here, inside the
+    # authorization's transaction, so the sweeper's promote path consumes too. Never raises.
+    consume_invite_code(db, claim, claim.authorized_at)
     listing = db.get(Listing, claim.listing_id)
     if listing is not None:
         listing.status = "claimed"
@@ -151,6 +163,51 @@ def _handle_payment_intent_canceled(db: Session, obj: dict[str, Any]) -> None:
                     "event": "stripe_webhook_claim_not_found",
                     "payment_intent_id": pi_id,
                     "handler": "payment_intent.canceled",
+                }
+            )
+        )
+        return
+
+    # D539 (1) — a completion covered by a Zelbi credit RELEASES the hold, so every
+    # covered completion fires this webhook. D548 extends the release to no_show and
+    # auto_captured: a pickup that starts with a credit never charges. The claim reads
+    # closed with credit_id set and captured_at null: an expected outcome, nothing to
+    # warn about, nothing to write.
+    if (
+        claim.status in ("completed", "no_show", "auto_captured")
+        and claim.credit_id is not None
+        and claim.captured_at is None
+    ):
+        logger.info(
+            json.dumps(
+                {
+                    "event": "stripe_webhook_pi_canceled_credit_release",
+                    "claim_id": str(claim.id),
+                    "payment_intent_id": pi_id,
+                }
+            )
+        )
+        return
+
+    # D539 (1) — the release is marked in the intent's metadata BEFORE the cancel, so
+    # this webhook can arrive while the route's commit is still in flight and the claim
+    # still reads authorized/pickup_scheduled. The mark says it is ours: no D62 alarm,
+    # no cancelled write. If that commit is lost, capture_payment_intent's lost-write
+    # adopt reconciles it on the next attempt; this handler must not pre-empt it.
+    metadata = obj.get("metadata")
+    release_mark = metadata.get(CREDIT_RELEASE_METADATA_KEY) if isinstance(metadata, dict) else None
+    if (
+        claim.status in ("authorized", "pickup_scheduled")
+        and isinstance(release_mark, str)
+        and release_mark == str(claim.id)
+    ):
+        logger.info(
+            json.dumps(
+                {
+                    "event": "stripe_webhook_pi_canceled_credit_release_in_flight",
+                    "claim_id": str(claim.id),
+                    "status": claim.status,
+                    "payment_intent_id": pi_id,
                 }
             )
         )
@@ -236,22 +293,8 @@ def _handle_payment_intent_payment_failed(db: Session, obj: dict[str, Any]) -> N
             }
         )
     )
-    try:
-        send_push(
-            db,
-            claim.picker_id,
-            "Payment failed",
-            listing.title if (listing := db.get(Listing, claim.listing_id)) else "Your claim",
-            {
-                "type": "payment_failed",
-                "claim_id": str(claim.id),
-                "listing_id": str(claim.listing_id),
-            },
-            "payment_failed",
-            claim.id,
-        )
-    except Exception:
-        logger.exception("send_push_failed_payment_failed")
+    # No push. Checkout shows the decline on screen the moment it happens, so a
+    # "Payment failed" notification only repeated it (Nick, Session 462). The log stays.
 
 
 @router.post("/webhooks/stripe")

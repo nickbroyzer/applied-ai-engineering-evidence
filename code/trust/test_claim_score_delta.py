@@ -258,3 +258,64 @@ def test_healing_completion_is_worth_more_than_ten(
     body = _delta(auth_client, picker_user, authorized_claim.id)
     assert body["trust_delta"] > 10
     assert body["trust_delta"] == 30
+
+
+# ---------------------------------------------------------------------------
+# D539 step 3, slice 2 — a completion covered by a Zelbi credit releases the hold. The
+# ending is still 'completed' anchored on completed_at, written in the same request as
+# the trust events, so it reads exactly like a charged completion on both sides.
+# ---------------------------------------------------------------------------
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+
+def _cover_with_credit(db_session, claim, user, mocker, stripe_pi_factory):
+    now = datetime.now(timezone.utc)
+    credit = models.Credit(
+        user_id=user.id, kind="giveaway", earned_at=now, expires_at=now + timedelta(days=90),
+    )
+    db_session.add(credit)
+    db_session.commit()
+    db_session.execute(
+        text("UPDATE claims SET credit_id=:c WHERE id=:cid"), {"c": credit.id, "cid": claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    pid = claim.stripe_payment_intent_id
+    mocker.patch(
+        "app.services.stripe_service.stripe.PaymentIntent.retrieve",
+        return_value=stripe_pi_factory(pi_id=pid, amount_capturable=200, status="requires_capture"),
+    )
+    mocker.patch("app.services.stripe_service.stripe.PaymentIntent.modify")
+    mocker.patch(
+        "app.services.stripe_service.stripe.PaymentIntent.cancel",
+        return_value=stripe_pi_factory(pi_id=pid, status="canceled", amount_capturable=0),
+    )
+    return mocker.patch("app.services.stripe_service.stripe.PaymentIntent.capture")
+
+
+def test_covered_completion_reads_the_same_as_a_charged_one_for_the_picker(
+    db_session, auth_client, picker_user, authorized_claim, mocker, stripe_pi_factory,
+):
+    capture = _cover_with_credit(db_session, authorized_claim, picker_user, mocker, stripe_pi_factory)
+    resp = auth_client(picker_user).post(f"/claims/{authorized_claim.id}/confirm-pickup")
+    assert resp.status_code == 200, resp.text
+    capture.assert_not_called()
+    db_session.expire_all()
+    assert db_session.get(models.Claim, authorized_claim.id).captured_at is None
+    assert _delta(auth_client, picker_user, authorized_claim.id) == {
+        "trust_delta": 10,
+        "eco_delta": 10,
+    }
+
+
+def test_covered_completion_reads_the_same_as_a_charged_one_for_the_giver(
+    db_session, auth_client, picker_user, giver_user, authorized_claim, mocker, stripe_pi_factory,
+):
+    _cover_with_credit(db_session, authorized_claim, picker_user, mocker, stripe_pi_factory)
+    resp = auth_client(picker_user).post(f"/claims/{authorized_claim.id}/confirm-pickup")
+    assert resp.status_code == 200, resp.text
+    assert _delta(auth_client, giver_user, authorized_claim.id) == {
+        "trust_delta": 10,
+        "eco_delta": 5,
+    }

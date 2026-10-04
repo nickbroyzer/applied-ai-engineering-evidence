@@ -1,11 +1,27 @@
+import type { AxiosError } from 'axios';
 import { router } from 'expo-router';
-import type { Session } from '@supabase/supabase-js';
+import {
+  isAuthApiError,
+  isAuthSessionMissingError,
+  type Session,
+} from '@supabase/supabase-js';
 import { create } from 'zustand';
 
 import { TERMS_VERSION } from '@/constants/legal';
 import { getSupabase, LargeSecureStoreAdapter } from '@/utils/supabase';
+import { lastSignInMethod, track } from '@/utils/events';
 
 const SESSION_KEY = 'zelbi_session';
+// Last-known /auth/me, so a cold start with no network can still route from a
+// real profile instead of a null user.
+const USER_KEY = 'zelbi_user';
+
+// Revalidation refreshes ahead of time when the access token has this little
+// life left, rather than spending a request on a certain 401.
+const EXPIRY_MARGIN_S = 90;
+const REVALIDATE_RETRY_MS = [3_000, 10_000, 30_000];
+const ME_TIMEOUT_MS = 8_000;
+const PUSH_CLEAR_CAP_MS = 3_000;
 
 export type AuthSessionSlice = {
   access_token: string;
@@ -50,7 +66,29 @@ export type MeUser = {
   age_attested_at: string | null;
   age_attestation_method: string | null;
   profile_completed_at: string | null;
+  giveaway_credit_needs_device_check?: boolean;
 };
+
+export type RefreshResult = 'ok' | 'refused' | 'unreachable';
+
+/**
+ * A refusal is only an answer from the auth server that names this session
+ * dead: a 400/401/403 AuthApiError, or session_not_found. Everything else —
+ * AuthRetryableFetchError (offline, our 8 s abort, 502/503/504), AuthUnknownError
+ * (a captive portal or proxy page), a 429 or 5xx AuthApiError, any non-auth
+ * throw — is "could not ask", and must never cost the user their session.
+ */
+export function classifyAuthError(e: unknown): 'refused' | 'unreachable' {
+  if (isAuthSessionMissingError(e)) return 'refused';
+  if (isAuthApiError(e) && [400, 401, 403].includes(e.status)) return 'refused';
+  return 'unreachable';
+}
+
+const REFRESH_CAP_MS = 10_000;
+
+// Single-flight: parallel 401s share one refresh, so a refresh token that one
+// caller has just rotated is never presented a second time by another.
+let refreshInFlight: Promise<RefreshResult> | null = null;
 
 type AuthState = {
   session: AuthSessionSlice | null;
@@ -67,8 +105,16 @@ type AuthState = {
   /** Persist session and set store token so axios can call GET /auth/me after verifyOtp. */
   primeSessionForApi: (session: Session) => Promise<void>;
   logout: () => Promise<void>;
-  refreshSession: () => Promise<boolean>;
+  /**
+   * 'refused' means the server explicitly rejected the refresh token — the only
+   * outcome that may end the session. 'unreachable' means no answer was had
+   * (offline, timeout, 5xx, 429, garbage body); the stored session is kept.
+   */
+  refreshSession: () => Promise<RefreshResult>;
+  /** Local only: reads SecureStore, never the network. Releases the splash. */
   restoreSession: () => Promise<void>;
+  /** Background check of the restored session. Never blocks UI; never throws. */
+  revalidateSession: () => Promise<void>;
   setUser: (user: MeUser) => void;
   clearSuspensionFlag: () => void;
   setSuspensionFrom403: (detail: string) => void;
@@ -143,6 +189,55 @@ async function persistSession(slice: AuthSessionSlice | null): Promise<void> {
   }
 }
 
+function parseSlice(raw: string | null): AuthSessionSlice | null {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as Partial<AuthSessionSlice> | null;
+    if (
+      p &&
+      typeof p.access_token === 'string' &&
+      typeof p.refresh_token === 'string' &&
+      typeof p.expires_at === 'number'
+    ) {
+      return p as AuthSessionSlice;
+    }
+  } catch {}
+  return null;
+}
+
+// User writes are chained so two quick setUser calls can never interleave
+// their chunk writes, and skipped when nothing changed so the 60 s heartbeat
+// does not rewrite SecureStore on every tick.
+let userWriteChain: Promise<void> = Promise.resolve();
+let lastUserJson: string | null = null;
+
+function persistUser(user: MeUser | null): Promise<void> {
+  const json = user ? JSON.stringify(user) : null;
+  if (json !== null && json === lastUserJson) return userWriteChain;
+  lastUserJson = json;
+  userWriteChain = userWriteChain
+    .then(() =>
+      json === null
+        ? LargeSecureStoreAdapter.removeItem(USER_KEY)
+        : LargeSecureStoreAdapter.setItem(USER_KEY, json),
+    )
+    .catch(() => {});
+  return userWriteChain;
+}
+
+async function readCachedUser(): Promise<MeUser | null> {
+  try {
+    const raw = await LargeSecureStoreAdapter.getItem(USER_KEY);
+    if (!raw) return null;
+    const u = JSON.parse(raw) as MeUser | null;
+    if (u && typeof u.id === 'string') {
+      lastUserJson = raw;
+      return u;
+    }
+  } catch {}
+  return null;
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
@@ -154,7 +249,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWelcome: null,
   signInCeremonyActive: false,
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    set({ user });
+    void persistUser(user);
+  },
 
   clearSuspensionFlag: () =>
     set({ isSuspendedFromApi: false, suspensionDetail: null, isCountryBlockedFromApi: false }),
@@ -185,6 +283,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       suspensionDetail: null,
       isCountryBlockedFromApi: false,
     });
+    void persistUser(user);
     // Fire-and-forget: push token registration has no bearing on sign-in
     // completing and nothing downstream reads its result, so it must not sit
     // on the critical path completeSignIn's caller is awaiting (the sign-in
@@ -209,13 +308,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // no credentials, was refused, and had its failure swallowed — leaving the
     // token on the signed-out account, so that account's pushes kept landing on
     // this device. Never move this below signOut.
+    // It is capped so an unreachable server cannot hold the sign-out hostage;
+    // the request itself already carries the token and keeps going.
     try {
       const { registerPushTokenIfPossible } = await import('@/utils/pushToken');
-      await registerPushTokenIfPossible(null);
+      await Promise.race([
+        registerPushTokenIfPossible(null),
+        new Promise<void>((resolve) => setTimeout(resolve, PUSH_CLEAR_CAP_MS)),
+      ]);
     } catch {}
-    const supabase = getSupabase();
-    await supabase.auth.signOut();
-    await persistSession(null);
+    cancelRevalidationRetry();
+    // Nothing below the push clear may stop the local teardown: signOut is
+    // bounded by the auth fetch timeout, and its errors are not our business.
+    // When the server call fails, auth-js returns early and keeps its own
+    // stored session — and its ticker would keep refreshing it — so drop that
+    // copy locally too.
+    try {
+      const { error } = await getSupabase().auth.signOut();
+      if (error) await getSupabase().auth.signOut({ scope: 'local' });
+    } catch {}
+    try {
+      await Promise.all([persistSession(null), persistUser(null)]);
+    } catch {}
     set({
       session: null,
       user: null,
@@ -227,74 +341,187 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     router.replace('/');
   },
 
-  refreshSession: async () => {
-    const supabase = getSupabase();
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session) {
-      return false;
-    }
-    const slice = sessionToSlice(data.session);
-    await persistSession(slice);
-    set({ session: slice, isAuthenticated: true });
-    return true;
+  refreshSession: () => {
+    if (refreshInFlight) return refreshInFlight;
+
+    // zelbi_session is the source of truth: pass its refresh token explicitly
+    // rather than letting supabase-js read its own sb-* key, which may be
+    // stale or already wiped.
+    const refreshToken = get().session?.refresh_token;
+    if (!refreshToken) return Promise.resolve<RefreshResult>('refused');
+
+    // The attempt persists its own success, so a refresh that lands after the
+    // cap below still saves the rotated token instead of losing it.
+    const attempt = (async (): Promise<RefreshResult> => {
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase.auth.refreshSession({
+          refresh_token: refreshToken,
+        });
+        if (error) return classifyAuthError(error);
+        if (!data.session) return 'unreachable';
+        const slice = sessionToSlice(data.session);
+        await persistSession(slice);
+        set({ session: slice, isAuthenticated: true });
+        return 'ok';
+      } catch (e) {
+        return classifyAuthError(e);
+      }
+    })();
+
+    let capTimer: ReturnType<typeof setTimeout> | undefined;
+    const cap = new Promise<RefreshResult>((resolve) => {
+      capTimer = setTimeout(() => resolve('unreachable'), REFRESH_CAP_MS);
+    });
+
+    refreshInFlight = Promise.race([attempt, cap]).finally(() => {
+      clearTimeout(capTimer);
+      refreshInFlight = null;
+    });
+    return refreshInFlight;
   },
 
+  // INVARIANT: nothing awaited here may touch the network. This function is
+  // what releases the splash, and it used to run setSession and /auth/me
+  // first — so a dead connection either hung the splash or, when those calls
+  // failed, deleted a perfectly good session. Checking the session with the
+  // server is revalidateSession's job, in the background.
   restoreSession: async () => {
     set({ isLoading: true });
+    let restored = false;
     try {
-      const raw = await LargeSecureStoreAdapter.getItem(SESSION_KEY);
-      if (!raw) {
-        set({
-          isLoading: false,
-          isAuthenticated: false,
-          session: null,
-          user: null,
-        });
+      const slice = parseSlice(await LargeSecureStoreAdapter.getItem(SESSION_KEY));
+      if (!slice) {
+        // Missing or unreadable is not a refusal: leave whatever is stored in
+        // place. A later login overwrites it.
+        set({ isLoading: false, isAuthenticated: false });
         return;
       }
-      const parsed = JSON.parse(raw) as AuthSessionSlice;
-      const supabase = getSupabase();
-      const { data, error } = await supabase.auth.setSession({
-        access_token: parsed.access_token,
-        refresh_token: parsed.refresh_token,
-      });
-      if (error || !data.session) {
-        await persistSession(null);
-        set({
-          isLoading: false,
-          isAuthenticated: false,
-          session: null,
-          user: null,
-        });
-        return;
-      }
-      const slice = sessionToSlice(data.session);
-      await persistSession(slice);
+      const cachedUser = await readCachedUser();
       set({
-        session: slice,
+        // A token rotation that landed while this read was in flight is newer
+        // than what was on disk when the read began.
+        session: get().session ?? slice,
+        user: cachedUser ?? null,
         isAuthenticated: true,
-      });
-      const { api } = await import('@/utils/api');
-      const me = await api.get<MeUser>('/auth/me');
-      set({
-        user: me.data,
         isLoading: false,
       });
-      try {
-        const { registerPushTokenIfPossible } = await import('@/utils/pushToken');
-        await registerPushTokenIfPossible();
-      } catch {}
+      restored = true;
     } catch {
-      await persistSession(null);
-      set({
-        isLoading: false,
-        isAuthenticated: false,
-        session: null,
-        user: null,
-      });
+      set({ isLoading: false, isAuthenticated: false });
+    } finally {
+      if (get().isLoading) set({ isLoading: false });
     }
+    if (restored) void get().revalidateSession();
   },
+
+  revalidateSession: () => startRevalidation(false),
 }));
+
+let revalidateInFlight: Promise<void> | null = null;
+let revalidateRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let revalidateRetryIndex = 0;
+
+function cancelRevalidationRetry(): void {
+  if (revalidateRetryTimer != null) {
+    clearTimeout(revalidateRetryTimer);
+    revalidateRetryTimer = null;
+  }
+  revalidateRetryIndex = 0;
+}
+
+/** 3 s, 10 s, 30 s, then stop — the heartbeat and foreground events take over. */
+function scheduleRevalidationRetry(): void {
+  if (revalidateRetryTimer != null) return;
+  if (revalidateRetryIndex >= REVALIDATE_RETRY_MS.length) {
+    revalidateRetryIndex = 0;
+    return;
+  }
+  const delay = REVALIDATE_RETRY_MS[revalidateRetryIndex++];
+  revalidateRetryTimer = setTimeout(() => {
+    revalidateRetryTimer = null;
+    void startRevalidation(true);
+  }, delay);
+}
+
+function startRevalidation(fromRetry: boolean): Promise<void> {
+  // A fresh trigger (launch, foreground) restarts the retry schedule.
+  if (!fromRetry) cancelRevalidationRetry();
+  if (revalidateInFlight) return revalidateInFlight;
+  revalidateInFlight = revalidateOnce()
+    .catch(() => {})
+    .finally(() => {
+      revalidateInFlight = null;
+    });
+  return revalidateInFlight;
+}
+
+async function revalidateOnce(): Promise<void> {
+  const store = useAuthStore.getState();
+  if (!store.isAuthenticated || !store.session) return;
+
+  if (store.session.expires_at - Date.now() / 1000 <= EXPIRY_MARGIN_S) {
+    const result = await store.refreshSession();
+    if (result === 'refused') {
+      await useAuthStore.getState().logout();
+      return;
+    }
+    if (result === 'unreachable') {
+      scheduleRevalidationRetry();
+      return;
+    }
+  }
+
+  try {
+    const { api } = await import('@/utils/api');
+    const me = await api.get<MeUser>('/auth/me', { timeout: ME_TIMEOUT_MS });
+    // The session may have ended while the request was out.
+    if (!useAuthStore.getState().isAuthenticated) return;
+    revalidateRetryIndex = 0;
+    useAuthStore.getState().setUser(me.data);
+    void import('@/utils/pushToken')
+      .then(({ registerPushTokenIfPossible }) => registerPushTokenIfPossible())
+      .catch(() => {});
+  } catch (e) {
+    // A 401 has already been through the interceptor, which owns every refusal
+    // decision; if it signed the user out there is nothing left to retry.
+    if (!useAuthStore.getState().isAuthenticated) return;
+    const res = (e as AxiosError).response;
+    const reason = res?.headers?.['x-zelbi-reason'];
+    if (res?.status === 403 && reason === 'account_deleted') {
+      await useAuthStore.getState().logout();
+      return;
+    }
+    // Suspension and country refusals are already flagged by the interceptor;
+    // asking again changes nothing.
+    if (res?.status === 403 && reason) return;
+    scheduleRevalidationRetry();
+  }
+}
+
+// supabase-js rotates the refresh token on its own ticker and after our own
+// refreshSession calls. Without this, zelbi_session kept the old refresh
+// token, and a relaunch presented a token the server had already consumed.
+// Deferred with setTimeout because auth-js warns that awaiting inside this
+// callback can deadlock it. SIGNED_OUT is deliberately ignored: supabase-js
+// emits it on its own non-retryable errors (a proxy page, a 5xx body), which
+// are not refusals — only this store decides when a session ends.
+try {
+  getSupabase().auth.onAuthStateChange((event, s) => {
+    if (event !== 'TOKEN_REFRESHED' || !s) return;
+    const slice = sessionToSlice(s);
+    setTimeout(() => {
+      const state = useAuthStore.getState();
+      // After a local logout nothing may write a session back.
+      if (!state.isLoading && !state.session) return;
+      void persistSession(slice).catch(() => {});
+      useAuthStore.setState({ session: slice });
+    }, 0);
+  });
+} catch (e) {
+  // Missing Supabase env must not crash the import graph; sign-in reports it.
+  console.error('[auth] could not subscribe to auth state changes', e);
+}
 
 /**
  * Shared post-sign-in work for every sign-in path (Apple native, OAuth,
@@ -305,11 +532,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
  * write failed is worse than a consent recorded one sign-in late.
  */
 export async function completeSignIn(session: Session): Promise<MeUser> {
+  track('signin_completed', { method: lastSignInMethod() });
   await useAuthStore.getState().primeSessionForApi(session);
   const { api } = await import('@/utils/api');
   const me = await api.get<MeUser>('/auth/me');
   let user = me.data;
-  if (user.terms_version_accepted !== TERMS_VERSION) {
+  // Only a brand-new account (never accepted anything) is auto-accepted here —
+  // it agrees on the welcome screen. A returning account on an older version
+  // keeps that version; the terms-updated screen (app/terms-updated.tsx) is
+  // what asks it to accept the current one.
+  if (user.terms_version_accepted == null) {
     try {
       const accepted = await api.post<MeUser>('/users/me/accept-terms', {
         version: TERMS_VERSION,

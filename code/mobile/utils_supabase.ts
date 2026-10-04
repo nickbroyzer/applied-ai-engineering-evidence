@@ -67,6 +67,40 @@ export const LargeSecureStoreAdapter = {
 let client: SupabaseClient | null = null;
 let oauthClient: SupabaseClient | null = null;
 
+const AUTH_FETCH_TIMEOUT_MS = 8_000;
+
+/**
+ * auth-js sets no timeout of its own, so on a connection with no route a
+ * setSession or refresh can hang for as long as the native stack allows.
+ * Bound only GoTrue calls: an abort makes fetch throw, which auth-js turns
+ * into AuthRetryableFetchError — an "unreachable", never a refusal. Storage
+ * and PostgREST calls (uploads included) pass through untouched.
+ */
+export function authFetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const url =
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input.url;
+  if (!url.includes('/auth/v1/')) {
+    return fetch(input, init);
+  }
+  const controller = new AbortController();
+  const callerSignal = init?.signal;
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener('abort', () => controller.abort());
+  }
+  const timer = setTimeout(() => controller.abort(), AUTH_FETCH_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
 function readEnv(): { url: string; anon: string } {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -99,6 +133,7 @@ export function getSupabase(): SupabaseClient {
       autoRefreshToken: true,
       persistSession: true,
     },
+    global: { fetch: authFetchWithTimeout },
   });
   return client;
 }
@@ -124,6 +159,7 @@ export function getOAuthSupabase(): SupabaseClient {
       persistSession: true,
       flowType: 'pkce',
     },
+    global: { fetch: authFetchWithTimeout },
   });
   return oauthClient;
 }

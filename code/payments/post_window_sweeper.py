@@ -25,11 +25,15 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, or_
+from sqlalchemy import DateTime, and_, func, or_
 from sqlalchemy.orm import Session
 
-from app.models import Claim, Listing, TrustEvent, User
+from app.models import Claim, Listing, Notification, TrustEvent, User
+from app.routers.claims import completion_fee_push_body
 from app.services.block_service import is_blocked
+from app.services.collect_ask import COLLECT_ASK_DELAY, collect_ask_at
+from app.services.credit_service import GIVEAWAY_CREDIT_PUSH_BODY, maybe_award_giveaway_credit
+from app.services.referral_service import maybe_award_referral_credit
 from app.services.notification_service import send_push
 from app.services.stripe_service import (
     StripeServiceError,
@@ -50,11 +54,22 @@ class SweeperResult:
     errored: int
     auto_cancelled: int = field(default=0)
     reminders_sent: int = field(default=0)
+    collect_asks_sent: int = field(default=0)
+
+
+def _pickup_end(claim_col=Claim.pickup_scheduled_at):
+    """When the pickup is over, per claim. D524: a curbside pickup runs to
+    pickup_window_ends_at (21:00 local on the set-out day), so the 24-hour capture wait
+    starts there, not at the set-out time — the item goes OUT at the set-out time. Meet in
+    person, and any curbside claim booked before the change, leave the column null and keep
+    the old behaviour."""
+    return func.coalesce(Claim.pickup_window_ends_at, claim_col)
 
 
 def _eligible_claims(db: Session, now: datetime) -> list[Claim]:
     geofence_threshold = now - timedelta(hours=2)
     no_geofence_threshold = now - timedelta(hours=24)
+    pickup_end = _pickup_end()
     return (
         db.query(Claim)
         .filter(
@@ -63,15 +78,34 @@ def _eligible_claims(db: Session, now: datetime) -> list[Claim]:
             or_(
                 and_(
                     Claim.geofence_confirmed_at.isnot(None),
-                    Claim.pickup_scheduled_at < geofence_threshold,
+                    pickup_end < geofence_threshold,
                     # D444 — both must be older than 2h: "later of the two".
                     Claim.geofence_confirmed_at < geofence_threshold,
                 ),
                 and_(
                     Claim.geofence_confirmed_at.is_(None),
-                    Claim.pickup_scheduled_at < no_geofence_threshold,
+                    pickup_end < no_geofence_threshold,
                 ),
             ),
+        )
+        .all()
+    )
+
+
+def _eligible_for_curbside_auto_cancel(db: Session, now: datetime) -> list[Claim]:
+    """D524 — a curbside set-out time the picker never confirmed. The proposal sits in
+    proposed_times with the claim still authorized; at the set-out time it is over. The hold
+    is voided, the item relists, nobody is asked anything and no strike is filed. Separate
+    from the 6-day rule above, which only looks at claims with no times at all."""
+    return (
+        db.query(Claim)
+        .filter(
+            Claim.status == "authorized",
+            Claim.pickup_mode == "porch",
+            Claim.pickup_scheduled_at.is_(None),
+            Claim.proposed_times.isnot(None),
+            func.jsonb_array_length(Claim.proposed_times) > 0,
+            func.cast(func.jsonb_array_element_text(Claim.proposed_times, 0), DateTime) < now,
         )
         .all()
     )
@@ -147,12 +181,15 @@ def _sync_listing_on_auto_captured(
 
 
 def _send_picker_push(db: Session, claim: Claim, listing: Listing) -> None:
+    # The body reads the claim after the write: a post_window capture is always charged,
+    # but the lost-write adopt inside capture_payment_intent can land a covered
+    # completion here (D539 (1)), and that push must not say a fee was taken.
     try:
         send_push(
             db,
             claim.picker_id,
             "Pickup complete",
-            "Your $2 claim fee was processed",
+            completion_fee_push_body(claim),
             {
                 "type": "claim_auto_captured",
                 "role": "picker",
@@ -167,13 +204,13 @@ def _send_picker_push(db: Session, claim: Claim, listing: Listing) -> None:
         logger.exception("send_push_failed_claim_auto_captured_picker")
 
 
-def _send_giver_push(db: Session, claim: Claim, listing: Listing) -> None:
+def _send_giver_push(db: Session, claim: Claim, listing: Listing, *, earned_credit: bool = False) -> None:
     try:
         send_push(
             db,
             listing.giver_id,
             "Giveaway complete",
-            listing.title,
+            GIVEAWAY_CREDIT_PUSH_BODY if earned_credit else listing.title,
             {
                 "type": "claim_auto_captured",
                 "role": "giver",
@@ -243,9 +280,10 @@ def _release_blocked_claim(db: Session, claim: Claim, listing: Listing) -> bool:
 
 
 def _run_auto_cancels(db: Session, now: datetime) -> int:
-    """Void + cancel claims that never completed pickup coordination after 6d (D105)."""
+    """Void + cancel claims that never completed pickup coordination after 6d (D105), and
+    curbside proposals the picker never confirmed by the set-out time (D524)."""
     auto_cancelled = 0
-    for claim in _eligible_for_auto_cancel(db, now):
+    for claim in _eligible_for_auto_cancel(db, now) + _eligible_for_curbside_auto_cancel(db, now):
         listing = db.get(Listing, claim.listing_id)
         try:
             cancel_payment_intent(claim.id, "auto_cancel_no_pickup", db)
@@ -313,11 +351,27 @@ def _send_auto_cancel_push(
     if user_id is None:
         return
     notification_type = f"claim_auto_cancelled_{role}"
-    body = (
-        "No pickup was arranged in time for this item."
-        if role == "picker"
-        else "No pickup was arranged in time. Item is relisted for others to claim."
-    )
+    if claim.pickup_mode == "porch":
+        # D524 — this one expired because the picker never confirmed the set-out time.
+        picker = db.get(User, claim.picker_id)
+        picker_name = (picker.display_name or "").strip() if picker is not None else ""
+        item = listing.title if listing is not None else "Your item"
+        giver_body = (
+            f"{picker_name} didn't confirm. {item} is back on Zelbi."
+            if picker_name
+            else f"Not confirmed in time. {item} is back on Zelbi."
+        )
+        body = (
+            "You didn't confirm the pickup time, so the claim was cancelled. Your $2 hold was released."
+            if role == "picker"
+            else giver_body
+        )
+    else:
+        body = (
+            "No pickup was arranged in time for this item."
+            if role == "picker"
+            else "No pickup was arranged in time. Item is relisted for others to claim."
+        )
     try:
         send_push(
             db,
@@ -442,6 +496,59 @@ def _send_reminder(
         return False
 
 
+def _eligible_for_collect_ask(db: Session, now: datetime) -> list[Claim]:
+    """Booked pickups whose end is at least COLLECT_ASK_DELAY old, with no photo and no
+    charge yet. The exact ask time is checked per claim in Python (it needs the item's
+    timezone)."""
+    return (
+        db.query(Claim)
+        .filter(
+            Claim.status.in_(("authorized", "pickup_scheduled")),
+            Claim.pickup_scheduled_at.isnot(None),
+            Claim.completion_photo_url.is_(None),
+            Claim.captured_at.is_(None),
+            _pickup_end() < now - COLLECT_ASK_DELAY,
+        )
+        .all()
+    )
+
+
+def _run_collect_asks(db: Session, now: datetime) -> int:
+    """Session 459 — push the giver "Was your item picked up?" once the ask time passes.
+    Sent once per claim ever: the per-day idempotency guard is not enough, because a claim
+    can stay open across two calendar days before the 24-hour capture."""
+    sent = 0
+    now_aware = now.replace(tzinfo=timezone.utc)
+    for claim in _eligible_for_collect_ask(db, now):
+        listing = db.get(Listing, claim.listing_id)
+        if listing is None:
+            continue
+        if is_blocked(db, claim.picker_id, listing.giver_id):
+            continue
+        ask_at = collect_ask_at(claim, listing)
+        if ask_at is None or ask_at > now_aware:
+            continue
+        already = (
+            db.query(Notification.id)
+            .filter(
+                Notification.notification_type == "collect_ask_giver",
+                Notification.target_id == claim.id,
+            )
+            .first()
+        )
+        if already is not None:
+            continue
+        if _send_reminder(
+            db, claim, listing.giver_id,
+            "collect_ask_giver",
+            "Was your item picked up?",
+            listing.title,
+            listing_id=str(listing.id),
+        ):
+            sent += 1
+    return sent
+
+
 def run_post_window_sweeper(db: Session) -> SweeperResult:
     """Sweep eligible claims: auto-cancel stalled, capture past-window, send T-24h reminders."""
     # Naive UTC for comparison against TIMESTAMP WITHOUT TIME ZONE columns
@@ -528,8 +635,11 @@ def run_post_window_sweeper(db: Session) -> SweeperResult:
             )
         )
         giver = db.get(User, listing.giver_id)
+        awarded_credit = None
         if giver is not None:
             giver.completed_giveaways = (giver.completed_giveaways or 0) + 1
+            awarded_credit = maybe_award_giveaway_credit(db, giver=giver, claim=claim)
+            maybe_award_referral_credit(db, friend=giver, claim=claim)
         recalculate_trust(db, claim.picker_id)
         recalculate_trust(db, listing.giver_id)
         try:
@@ -551,7 +661,10 @@ def run_post_window_sweeper(db: Session) -> SweeperResult:
             )
         )
         _send_picker_push(db, claim, listing)
-        _send_giver_push(db, claim, listing)
+        _send_giver_push(db, claim, listing, earned_credit=awarded_credit is not None)
+
+    # Session 459: asked only after capture ran, so a claim closed this run is never asked.
+    collect_asks_sent = _run_collect_asks(db, now)
 
     # D105: T-24h reminder routing (after capture sweep).
     reminders_sent = _run_t_minus_24h_reminders(db, now)
@@ -562,4 +675,5 @@ def run_post_window_sweeper(db: Session) -> SweeperResult:
         errored=errored,
         auto_cancelled=auto_cancelled,
         reminders_sent=reminders_sent,
+        collect_asks_sent=collect_asks_sent,
     )

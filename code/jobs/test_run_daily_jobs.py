@@ -9,6 +9,7 @@ def _patch_all(mocker, *, raise_on=None):
     """Patch SessionLocal and both job functions. If raise_on is a label, that fn raises."""
     mock_db = MagicMock()
     mocker.patch.object(runner, "SessionLocal", return_value=mock_db)
+    mocker.patch.object(runner, "record_run")
 
     mocks = {}
     for label, attr in [
@@ -66,3 +67,25 @@ def test_db_closed_on_failure(mocker):
     with pytest.raises(SystemExit):
         runner.main()
     mock_db.close.assert_called_once()
+
+
+def test_each_job_run_is_recorded(mocker):
+    _patch_all(mocker)
+    mocker.patch.object(runner, "send_daily_digest_summaries", return_value=0)
+
+    runner.main()
+
+    by_job = {c.args[0]: c.kwargs for c in runner.record_run.call_args_list}
+    for label in ("saved_deadline_scan", "recommendation_scan", "daily_digest_summaries"):
+        assert by_job[label]["result"] == "ok"
+
+
+def test_failed_job_is_recorded_failed(mocker):
+    _patch_all(mocker, raise_on="recommendation_scan")
+
+    with pytest.raises(SystemExit):
+        runner.main()
+
+    by_job = {c.args[0]: c.kwargs for c in runner.record_run.call_args_list}
+    assert by_job["recommendation_scan"]["result"] == "failed"
+    assert by_job["recommendation_scan"]["error"].startswith("RuntimeError: simulated failure")

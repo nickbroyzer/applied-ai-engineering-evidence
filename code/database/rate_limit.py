@@ -5,8 +5,13 @@ from collections import defaultdict, deque
 
 from fastapi import Depends, HTTPException, Request
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_db
 from app.models import User
+from datetime import datetime, timezone
+
+from sqlalchemy.orm import Session
+
+from app.services.api_abuse import record_api_signal
 
 logger = logging.getLogger(__name__)
 
@@ -35,26 +40,48 @@ def _allow(key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
         return True, 0
 
 
+def enforce_rate_limit(db: Session, user: User, name: str, limit: int, window_seconds: int) -> None:
+    """Record one hit for `user` on the `name` bucket and raise 429 (with Retry-After and
+    the D538 abuse signal) once they exceed `limit` per `window_seconds`. Called by the
+    `rate_limit` dependency, and directly by a route that only meters some of its calls
+    (the invite-code issue route, D550)."""
+    key = f"{name}:{user.id}"
+    allowed, retry_after = _allow(key, limit, window_seconds)
+    if not allowed:
+        logger.warning(
+            "rate_limit_exceeded name=%s user=%s limit=%s window=%ss",
+            name,
+            user.id,
+            limit,
+            window_seconds,
+        )
+        # D538: one API-abuse alert per account per route per hour.
+        hour = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
+        record_api_signal(
+            db,
+            source_id=f"ratelimit:{name}:{user.id}:{hour}",
+            kind=f"Rate limit hit: {name}",
+            severity=4,
+            who=str(user.id),
+            ref=name,
+            payload={"limit": limit, "window_seconds": window_seconds},
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please wait a moment and try again.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 def rate_limit(name: str, limit: int, window_seconds: int):
     """Build a FastAPI dependency limiting an authenticated user to `limit`
     requests per `window_seconds` across everything this dependency guards."""
 
-    def _dependency(current_user: User = Depends(get_current_user)) -> None:
-        key = f"{name}:{current_user.id}"
-        allowed, retry_after = _allow(key, limit, window_seconds)
-        if not allowed:
-            logger.warning(
-                "rate_limit_exceeded name=%s user=%s limit=%s window=%ss",
-                name,
-                current_user.id,
-                limit,
-                window_seconds,
-            )
-            raise HTTPException(
-                status_code=429,
-                detail="Too many requests. Please wait a moment and try again.",
-                headers={"Retry-After": str(retry_after)},
-            )
+    def _dependency(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> None:
+        enforce_rate_limit(db, current_user, name, limit, window_seconds)
 
     return _dependency
 

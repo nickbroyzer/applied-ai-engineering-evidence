@@ -1,11 +1,14 @@
 import logging
+from datetime import datetime, timezone
 
 from app.database import SessionLocal
 from app.jobs.listing_expiry import expire_active_listings, send_listing_expiring_reminders
+from app.jobs.member_emails import retry_welcome_emails, send_invite_emails
 from app.jobs.pending_payment_sweeper import run_pending_payment_sweeper
 from app.jobs.pickup_reminder import run_pickup_reminder
 from app.jobs.post_window_sweeper import run_post_window_sweeper
 from app.observability import capture_exception, flush_sentry, init_sentry
+from app.services.job_runs import counts_text, record_run
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,11 +31,17 @@ def main() -> None:
         # never selected by any other job, so this must run at least that often or
         # a killed-app checkout can strand a listing indefinitely.
         ("pending_payment_sweeper", run_pending_payment_sweeper),
+        # D553: a welcome that failed at profile completion, and the invite email three days
+        # on. The invite send has a local-daytime window, so it needs this cadence. Both
+        # return at once while EMAIL_POSTAL_ADDRESS is empty.
+        ("retry_welcome_emails", retry_welcome_emails),
+        ("send_invite_emails", send_invite_emails),
     ]
     db = SessionLocal()
     failures = 0
     try:
         for label, fn in jobs:
+            started_at = datetime.now(timezone.utc)
             try:
                 result = fn(db)
                 logger.info("frequent_job_completed job=%s result=%s", label, result)
@@ -40,6 +49,9 @@ def main() -> None:
                 failures += 1
                 capture_exception(exc, job=label)
                 logger.exception("frequent_job_failed job=%s", label)
+                record_run(label, started_at, result="failed", error=f"{type(exc).__name__}: {exc}")
+            else:
+                record_run(label, started_at, result="ok", counts=counts_text(label, result))
     finally:
         db.close()
         flush_sentry()

@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from app import models
+from app.dependencies import get_current_user, get_current_user_detached, get_current_user_optional
 from app.services.knowledge.answer import REFUSAL_TEXT
 from app.services.knowledge.answer_eval import run_answer_eval
 from app.services.knowledge.eval_cases import seed_eval_cases
@@ -63,6 +64,12 @@ def admin_user(db_session) -> models.User:
     db_session.commit()
     db_session.refresh(u)
     return u
+
+
+@pytest.fixture(autouse=True)
+def _signed_in(auth_client, picker_user):
+    # D538: /knowledge/ask requires a signed-in account.
+    auth_client(picker_user)
 
 
 def _ask(client, question: str, **extra):
@@ -212,7 +219,10 @@ def test_unknown_question_returns_safe_refusal(client, golden_cases):
 # --- CX route: admin-auth per §10; public callers cannot reach the CX index.
 
 
-def test_cx_route_requires_auth(client, golden_cases):
+def test_cx_route_requires_auth(app, client, golden_cases):
+    # This test is the signed-out caller: drop the autouse sign-in.
+    for dep in (get_current_user, get_current_user_detached, get_current_user_optional):
+        app.dependency_overrides.pop(dep, None)
     resp = client.post("/knowledge/cx/ask", json={"question": CLAIM_FEE_QUESTION})
     assert resp.status_code == 401
 

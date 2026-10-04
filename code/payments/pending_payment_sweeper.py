@@ -81,94 +81,99 @@ def _is_live_hold(intent) -> bool:
     return capturable is not None and int(capturable) >= CLAIM_AMOUNT_CENTS
 
 
+def _sweep_one(db: Session, claim: Claim) -> str:
+    """The sweeper's decision for one eligible claim: "promoted", "cancelled" or "errored"."""
+    # a4 — the money's true home is Stripe, not this row. Read it before
+    # deciding this claim was abandoned.
+    try:
+        intent = _retrieve_intent(claim)
+    except Exception:
+        logger.exception(
+            "pending_payment_sweeper_intent_read_failure claim_id=%s",
+            str(claim.id),
+        )
+        return "errored"
+
+    if intent is not None and _is_live_hold(intent):
+        logger.error(
+            json.dumps(
+                {
+                    "event": "pending_payment_divergence_live_hold",
+                    "claim_id": str(claim.id),
+                    "payment_intent_id": claim.stripe_payment_intent_id,
+                    "action": "promoted to authorized; authorize webhook was never applied",
+                }
+            )
+        )
+        try:
+            _handle_amount_capturable_updated(db, intent)
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "pending_payment_sweeper_promote_failure claim_id=%s",
+                str(claim.id),
+            )
+            return "errored"
+        return "promoted"
+
+    try:
+        cancel_payment_intent(claim.id, "pending_payment_abandoned", db)
+    except StripeServiceError:
+        db.rollback()
+        logger.error(
+            json.dumps(
+                {
+                    "event": "pending_payment_sweeper_stripe_error",
+                    "claim_id": str(claim.id),
+                }
+            )
+        )
+        return "errored"
+
+    listing = db.get(Listing, claim.listing_id)
+    claim.status = "cancelled"
+    claim.cancelled_at = datetime.now(timezone.utc)
+    db.add(claim)
+    if listing is not None and listing.status == "claimed":
+        listing.status = "active"
+        listing.available_since = datetime.utcnow()
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("pending_payment_sweeper_commit_failure")
+        return "errored"
+
+    logger.info(
+        json.dumps(
+            {
+                "event": "pending_payment_sweeper_cancelled",
+                "claim_id": str(claim.id),
+            }
+        )
+    )
+    return "cancelled"
+
+
 def run_pending_payment_sweeper(db: Session) -> PendingPaymentSweeperResult:
     """Cancel claims abandoned in pending_payment past the timeout and relist."""
     # Naive UTC for comparison against TIMESTAMP WITHOUT TIME ZONE columns
     # (matches the convention used elsewhere in the codebase).
     now = datetime.utcnow()
-
-    cancelled = 0
-    errored = 0
-    promoted = 0
-
-    for claim in _eligible_claims(db, now):
-        # a4 — the money's true home is Stripe, not this row. Read it before
-        # deciding this claim was abandoned.
-        try:
-            intent = _retrieve_intent(claim)
-        except Exception:
-            errored += 1
-            logger.exception(
-                "pending_payment_sweeper_intent_read_failure claim_id=%s",
-                str(claim.id),
-            )
-            continue
-
-        if intent is not None and _is_live_hold(intent):
-            logger.error(
-                json.dumps(
-                    {
-                        "event": "pending_payment_divergence_live_hold",
-                        "claim_id": str(claim.id),
-                        "payment_intent_id": claim.stripe_payment_intent_id,
-                        "action": "promoted to authorized; authorize webhook was never applied",
-                    }
-                )
-            )
-            try:
-                _handle_amount_capturable_updated(db, intent)
-            except Exception:
-                db.rollback()
-                errored += 1
-                logger.exception(
-                    "pending_payment_sweeper_promote_failure claim_id=%s",
-                    str(claim.id),
-                )
-            else:
-                promoted += 1
-            continue
-
-        try:
-            cancel_payment_intent(claim.id, "pending_payment_abandoned", db)
-        except StripeServiceError:
-            db.rollback()
-            errored += 1
-            logger.error(
-                json.dumps(
-                    {
-                        "event": "pending_payment_sweeper_stripe_error",
-                        "claim_id": str(claim.id),
-                    }
-                )
-            )
-            continue
-
-        listing = db.get(Listing, claim.listing_id)
-        claim.status = "cancelled"
-        claim.cancelled_at = datetime.now(timezone.utc)
-        db.add(claim)
-        if listing is not None and listing.status == "claimed":
-            listing.status = "active"
-            listing.available_since = datetime.utcnow()
-
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            errored += 1
-            logger.exception("pending_payment_sweeper_commit_failure")
-            continue
-
-        cancelled += 1
-        logger.info(
-            json.dumps(
-                {
-                    "event": "pending_payment_sweeper_cancelled",
-                    "claim_id": str(claim.id),
-                }
-            )
-        )
-
+    outcomes = [_sweep_one(db, claim) for claim in _eligible_claims(db, now)]
     return PendingPaymentSweeperResult(
-        cancelled=cancelled, errored=errored, promoted=promoted
+        cancelled=outcomes.count("cancelled"),
+        errored=outcomes.count("errored"),
+        promoted=outcomes.count("promoted"),
     )
+
+
+def run_pending_payment_sweeper_for_claim(db: Session, claim_id) -> str | None:
+    """The sweeper for one claim (admin Fix button). None when the claim is not
+    eligible: not pending_payment, or not yet past PENDING_PAYMENT_TIMEOUT."""
+    now = datetime.utcnow()
+    claim = next((c for c in _eligible_claims(db, now) if c.id == claim_id), None)
+    if claim is None:
+        return None
+    return _sweep_one(db, claim)

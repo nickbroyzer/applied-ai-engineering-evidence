@@ -104,7 +104,7 @@ from datetime import datetime, timedelta, timezone  # noqa: E402
 
 from sqlalchemy import text  # noqa: E402
 
-from app.models import BlockedUser, Claim, Listing, Message, Notification, User  # noqa: E402
+from app.models import BlockedUser, Claim, Listing, Notification, User  # noqa: E402
 from app.services.coordinate_privacy import generate_approximate_point  # noqa: E402
 
 
@@ -192,114 +192,6 @@ def test_by_user_returns_listings_when_no_block(
     assert len(resp.json()) == 1
 
 
-# --- inbox ---
-
-def _send_message(db_session, listing, sender_id, recipient_id):
-    msg = Message(
-        listing_id=listing.id,
-        sender_id=sender_id,
-        recipient_id=recipient_id,
-        content="hello",
-    )
-    db_session.add(msg)
-    db_session.commit()
-    db_session.refresh(msg)
-    return msg
-
-
-def test_inbox_omits_thread_when_counterparty_blocked(
-    auth_client, picker_user, giver_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_authorized_claim(db_session, listing, picker_user)
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    _block(db_session, picker_user, giver_user)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == []
-
-
-def test_inbox_omits_thread_when_counterparty_blocked_reverse(
-    auth_client, picker_user, giver_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_authorized_claim(db_session, listing, picker_user)
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    _block(db_session, giver_user, picker_user)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == []
-
-
-def test_inbox_keeps_unblocked_threads(
-    auth_client, picker_user, giver_user, other_picker_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_authorized_claim(db_session, listing, picker_user)
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    # block other_picker_user but not giver_user
-    _block(db_session, picker_user, other_picker_user)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert len(resp.json()) == 1
-
-
-def _make_claim_with_status(db_session, listing, picker_user, claim_status):
-    claim = Claim(
-        listing_id=listing.id,
-        picker_id=picker_user.id,
-        status=claim_status,
-    )
-    db_session.add(claim)
-    db_session.commit()
-    db_session.refresh(claim)
-    return claim
-
-
-def test_inbox_omits_thread_when_only_claim_cancelled(
-    auth_client, picker_user, giver_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_claim_with_status(db_session, listing, picker_user, "cancelled")
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == []
-
-
-def test_inbox_omits_thread_when_only_claim_no_show(
-    auth_client, picker_user, giver_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_claim_with_status(db_session, listing, picker_user, "no_show")
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == []
-
-
-def test_inbox_keeps_thread_when_claim_authorized(
-    auth_client, picker_user, giver_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_authorized_claim(db_session, listing, picker_user)
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert len(resp.json()) == 1
-
-
-def test_inbox_keeps_thread_when_claim_completed(
-    auth_client, picker_user, giver_user, db_session
-):
-    listing = _make_listing(db_session, giver_user)
-    _make_claim_with_status(db_session, listing, picker_user, "completed")
-    _send_message(db_session, listing, picker_user.id, giver_user.id)
-    resp = auth_client(picker_user).get("/messages/inbox")
-    assert resp.status_code == 200, resp.text
-    assert len(resp.json()) == 1
-
-
 # --- my-picker-active ---
 
 def test_picker_active_omits_claim_when_giver_blocked(
@@ -333,6 +225,28 @@ def test_picker_active_keeps_unblocked_claim(
     resp = auth_client(picker_user).get("/claims/my-picker-active")
     assert resp.status_code == 200, resp.text
     assert len(resp.json()) == 1
+
+
+def test_picker_active_omits_pending_payment_claim(
+    auth_client, picker_user, giver_user, db_session
+):
+    listing = _make_listing(db_session, giver_user)
+    db_session.add(Claim(listing_id=listing.id, picker_id=picker_user.id, status="pending_payment"))
+    db_session.commit()
+    resp = auth_client(picker_user).get("/claims/my-picker-active")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == []
+
+
+def test_giver_active_omits_pending_payment_claim(
+    auth_client, picker_user, giver_user, db_session
+):
+    listing = _make_listing(db_session, giver_user)
+    db_session.add(Claim(listing_id=listing.id, picker_id=picker_user.id, status="pending_payment"))
+    db_session.commit()
+    resp = auth_client(giver_user).get("/claims/my-giver-active")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == []
 
 
 # --- my-giver-active ---
@@ -576,6 +490,35 @@ def test_block_preview_no_active_claim(auth_client, picker_user, giver_user):
     assert data["listing_title"] is None
 
 
+def test_block_preview_ignores_pending_payment_claim(
+    auth_client, picker_user, giver_user, db_session
+):
+    """An unpaid checkout offers no refund modal: has_active_claim stays False."""
+    listing = _make_listing(db_session, giver_user)
+    db_session.add(Claim(listing_id=listing.id, picker_id=picker_user.id, status="pending_payment"))
+    db_session.commit()
+    resp = auth_client(picker_user).get(f"/claims/block-preview/{giver_user.id}")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["has_active_claim"] is False
+
+
+def test_block_user_still_cancels_pending_payment_claim(
+    auth_client, picker_user, giver_user, db_session, mock_stripe_pi_cancel
+):
+    """Blocking uses claim_cancel_service's own status set, which keeps pending_payment."""
+    listing = _make_listing(db_session, giver_user)
+    claim = Claim(listing_id=listing.id, picker_id=picker_user.id, status="pending_payment")
+    db_session.add(claim)
+    db_session.commit()
+    _set_stripe_pi_id(db_session, claim.id, "pi_pending_block")
+
+    resp = auth_client(picker_user).post(f"/users/{giver_user.id}/block")
+    assert resp.status_code == 200, resp.text
+
+    db_session.expire_all()
+    assert db_session.get(Claim, claim.id).status == "cancelled"
+
+
 def test_block_preview_picker_far_pickup(
     auth_client, picker_user, giver_user, db_session
 ):
@@ -634,3 +577,18 @@ def test_block_preview_current_user_is_giver(
     assert data["role"] == "giver"
     assert data["inside_grace_window"] is False
     assert data["listing_title"] == "Block Test Listing"
+
+
+# --- by-listing ---
+
+def test_by_listing_hides_exact_point_from_blocked_picker(
+    auth_client, picker_user, giver_user, db_session
+):
+    listing = _make_listing(db_session, giver_user)
+    _make_authorized_claim(db_session, listing, picker_user)
+    _block(db_session, picker_user, giver_user)
+    resp = auth_client(picker_user).get(f"/claims/by-listing/{listing.id}")
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["listing_lat"] is None
+    assert data["listing_lng"] is None

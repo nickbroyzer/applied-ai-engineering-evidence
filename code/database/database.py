@@ -14,6 +14,7 @@ from app.config import settings
 engine = create_engine(
     settings.sqlalchemy_database_url,
     echo=(settings.environment == "development"),
+    hide_parameters=True,
     # 5+5 caps any one process at 10 connections. The session-mode pooler
     # (port 5432, used by local dev) allows 15 CLIENTS IN TOTAL across
     # everything, and Postgres itself allows 60 connections total on this

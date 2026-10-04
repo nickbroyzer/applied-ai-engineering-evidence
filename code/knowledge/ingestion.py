@@ -19,6 +19,7 @@ APIs, no network, no .env access.
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.knowledge.chunking import Chunk, chunk_document
+from app.services.knowledge.embeddings import EMBEDDING_MODEL, EmbeddingUnavailable, embed_texts
 from app.services.knowledge.frontmatter import FrontmatterError, parse_frontmatter
 from app.services.knowledge.validation import (
     CX_DIR,
@@ -38,6 +40,8 @@ from app.services.knowledge.validation import (
     ValidatedDoc,
     validate_doc,
 )
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_DIRS = (PUBLIC_DIR, CX_DIR)
 
@@ -215,10 +219,20 @@ def run_ingestion(
             if doc_path not in prepared_paths and doc_path not in rejected_paths:
                 session.delete(doc)
 
+        to_embed: list[models.KnowledgeChunk] = []
         for prepared in report.prepared:
             doc = existing.get(prepared.meta.doc_path)
             if doc is not None and doc.content_hash == prepared.content_hash:
                 run.docs_skipped_unchanged += 1
+                # §14 step 3: unchanged text is still (re-)embedded when a chunk has no
+                # vector yet or was embedded with a different model.
+                to_embed.extend(
+                    row
+                    for row in session.query(models.KnowledgeChunk)
+                    .filter(models.KnowledgeChunk.document_id == doc.id)
+                    .all()
+                    if row.embedding is None or row.embedding_model != EMBEDDING_MODEL
+                )
                 continue
             if doc is None:
                 doc = models.KnowledgeDocument(doc_path=prepared.meta.doc_path)
@@ -243,8 +257,22 @@ def run_ingestion(
 
             chunk_rows = _chunk_rows(doc, prepared)
             session.add_all(chunk_rows)
+            to_embed.extend(chunk_rows)
             run.docs_ingested += 1
             run.chunks_written += len(chunk_rows)
+
+        if to_embed:
+            try:
+                vectors = embed_texts([row.content for row in to_embed], "document")
+            except EmbeddingUnavailable as exc:
+                logger.warning("knowledge_embeddings_skipped reason=%s", exc)
+            else:
+                for chunk_row, vector in zip(to_embed, vectors):
+                    chunk_row.embedding = vector
+                    chunk_row.embedding_model = EMBEDDING_MODEL
+                run.embeddings_created = len(vectors)
+                run.embedding_model = EMBEDDING_MODEL
+                session.flush()
 
         session.flush()
         _post_ingest_assertions(session)

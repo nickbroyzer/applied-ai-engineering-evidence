@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import SessionLocal
 from app.models import User
+from app.utils.client_ip import client_ip
 from app.utils.geoip import country_for_ip
 
 logger = logging.getLogger(__name__)
@@ -75,9 +76,8 @@ def get_current_user(
     except PyJWKClientError as e:
         logger.warning("[JWT VERIFY] JWKS lookup failed: %s", e)
         raise HTTPException(
-            status_code=401,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=503,
+            detail="Auth temporarily unavailable",
         )
     except Exception as e:
         logger.warning("[JWT VERIFY] unexpected: %s", type(e).__name__)
@@ -113,15 +113,12 @@ def get_current_user(
     if user.is_suspended:
         raise HTTPException(
             status_code=403,
-            detail="Account suspended",
+            detail=user.suspension_reason or "Account suspended",
             headers={"X-Zelbi-Reason": "account_suspended"},
         )
 
     if user.signup_country_checked_at is None:
-        forwarded = request.headers.get("x-forwarded-for", "")
-        ip = forwarded.split(",")[0].strip() if forwarded else (
-            request.client.host if request.client else ""
-        )
+        ip = client_ip(request)
         country = country_for_ip(ip) if ip else None
         if country is not None:
             try:

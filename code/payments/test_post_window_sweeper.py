@@ -507,6 +507,45 @@ def test_auto_cancel_meet_no_selection_after_6d(
     assert db_session.get(models.Listing, active_listing.id).status == "active"
 
 
+def test_curbside_auto_cancel_giver_body_names_picker(
+    mocker, db_session, picker_user, giver_user, active_listing,
+):
+    """Session 459 — curbside auto-cancel giver push names the picker by display_name."""
+    _give_user_token(db_session, picker_user)
+    _give_user_token(db_session, giver_user)
+    _patch_httpx(mocker)
+    mocker.patch("app.services.stripe_service.stripe.PaymentIntent.cancel")
+
+    picker_user.display_name = "Mrs. Fields"
+    db_session.add(picker_user)
+    db_session.commit()
+
+    past_setout = (datetime.utcnow() - timedelta(hours=1)).replace(microsecond=0).isoformat()
+    claim = _make_authorized_claim(
+        db_session, active_listing, picker_user,
+        authorized_offset_days=0.1,
+        pickup_mode="porch",
+        proposed_times=[past_setout],
+    )
+
+    result = run_post_window_sweeper(db_session)
+
+    assert result.auto_cancelled == 1
+
+    db_session.expire_all()
+    assert db_session.get(models.Claim, claim.id).status == "cancelled"
+
+    giver_notif = (
+        db_session.query(models.Notification)
+        .filter(
+            models.Notification.recipient_id == giver_user.id,
+            models.Notification.notification_type == "claim_auto_cancelled_giver",
+        )
+        .one()
+    )
+    assert giver_notif.body == "Mrs. Fields didn't confirm. Test Listing is back on Zelbi."
+
+
 def test_d55_capture_survives_d105_auto_cancel(
     mocker, db_session, picker_user, giver_user, active_listing,
     mock_stripe_pi_retrieve, mock_stripe_pi_capture,
@@ -748,3 +787,155 @@ def test_sweeper_early_ping_still_waits_for_appointment_plus_two_hours(
     db_session.expire_all()
     fresh = db_session.get(models.Claim, claim.id)
     assert fresh.status == "authorized"
+
+
+# ---------------------------------------------------------------------------
+# D539 step 3, slice 2 — C3: the 24-hour auto-capture with a reserved credit charges
+# exactly as today, and a lost covered-release write is reconciled, not looped on.
+# ---------------------------------------------------------------------------
+
+from app.routers.claims import COVERED_COMPLETION_PUSH_BODY, find_available_credit  # noqa: E402
+from app.services.stripe_service import CREDIT_RELEASE_METADATA_KEY  # noqa: E402
+
+
+def _reserve_credit(db_session, claim, user) -> models.Credit:
+    # A reserved giveaway credit passed its iPhone check by definition (D542 (4)).
+    now = datetime.now(timezone.utc)
+    credit = models.Credit(
+        user_id=user.id, kind="giveaway", earned_at=now, expires_at=now + timedelta(days=90),
+        device_checked_at=now,
+    )
+    db_session.add(credit)
+    db_session.commit()
+    db_session.refresh(credit)
+    db_session.execute(
+        text("UPDATE claims SET credit_id=:c WHERE id=:cid"),
+        {"c": credit.id, "cid": claim.id},
+    )
+    db_session.commit()
+    db_session.expire_all()
+    return credit
+
+
+def test_sweeper_releases_reserved_credit_claim_and_uses_the_credit_up(
+    mocker, db_session, picker_user, giver_user, active_listing, stripe_pi_factory,
+):
+    """C3 — D548: a covered claim whose picker never confirmed and whose giver never
+    answered is closed at the backstop by releasing the hold, not charging it. The claim
+    reads auto_captured with captured_at null and the credit is used up on it."""
+    _give_user_token(db_session, picker_user)
+    _give_user_token(db_session, giver_user)
+    _patch_httpx(mocker)
+    claim = _make_claim(
+        db_session, active_listing, picker_user,
+        status="pickup_scheduled", pickup_offset_hours=-25, geofence_offset_hours=None,
+    )
+    credit = _reserve_credit(db_session, claim, picker_user)
+    pid = claim.stripe_payment_intent_id
+    mocker.patch(
+        "app.services.stripe_service.stripe.PaymentIntent.retrieve",
+        return_value=stripe_pi_factory(pi_id=pid, amount_capturable=200, status="requires_capture"),
+    )
+    modify = mocker.patch("app.services.stripe_service.stripe.PaymentIntent.modify")
+    cancel = mocker.patch(
+        "app.services.stripe_service.stripe.PaymentIntent.cancel",
+        return_value=stripe_pi_factory(pi_id=pid, status="canceled", amount_capturable=0),
+    )
+    capture = mocker.patch("app.services.stripe_service.stripe.PaymentIntent.capture")
+
+    result = run_post_window_sweeper(db_session)
+
+    assert result.captured == 1
+    assert result.skipped_underfunded == 0
+    assert result.errored == 0
+    capture.assert_not_called()
+    modify.assert_called_once()
+    cancel.assert_called_once_with(pid)
+
+    db_session.expire_all()
+    fresh = db_session.get(models.Claim, claim.id)
+    assert fresh.status == "auto_captured"
+    assert fresh.auto_captured_at is not None
+    assert fresh.captured_at is None
+    assert fresh.credit_id == credit.id
+    fresh_credit = db_session.get(models.Credit, credit.id)
+    assert fresh_credit.used_at is not None
+    assert fresh_credit.used_claim_id == claim.id
+    assert find_available_credit(db_session, picker_user.id, datetime.now(timezone.utc)) is None
+
+
+def test_sweeper_reconciles_lost_covered_release_instead_of_looping(
+    mocker, db_session, picker_user, giver_user, active_listing, stripe_pi_factory,
+):
+    """C3 lost write — Zelbi released the hold for a covered claim (the intent is
+    canceled and carries our mark) but the claim is still live. The sweeper's capture
+    call adopts the release: closed for the sweeper's own reason (auto_captured, D548),
+    credit spent, listing and counters closed, and NOT the underfunded auto-void error
+    every five minutes forever."""
+    _give_user_token(db_session, picker_user)
+    _give_user_token(db_session, giver_user)
+    _patch_httpx(mocker)
+    claim = _make_claim(
+        db_session, active_listing, picker_user,
+        status="pickup_scheduled", pickup_offset_hours=-25, geofence_offset_hours=None,
+    )
+    credit = _reserve_credit(db_session, claim, picker_user)
+
+    pi = stripe_pi_factory(pi_id=claim.stripe_payment_intent_id, status="canceled", amount_capturable=0)
+    pi.metadata = {CREDIT_RELEASE_METADATA_KEY: str(claim.id)}
+    mocker.patch("app.services.stripe_service.stripe.PaymentIntent.retrieve", return_value=pi)
+    modify = mocker.patch("app.services.stripe_service.stripe.PaymentIntent.modify")
+    cancel = mocker.patch("app.services.stripe_service.stripe.PaymentIntent.cancel")
+    capture = mocker.patch("app.services.stripe_service.stripe.PaymentIntent.capture")
+    stripe_error_spy = mocker.spy(
+        __import__("app.services.stripe_service", fromlist=["logger"]).logger, "error",
+    )
+    sweeper_error_spy = mocker.spy(
+        __import__("app.jobs.post_window_sweeper", fromlist=["logger"]).logger, "error",
+    )
+
+    result = run_post_window_sweeper(db_session)
+
+    assert result.captured == 1
+    assert result.skipped_underfunded == 0
+    assert result.errored == 0
+    capture.assert_not_called()
+    modify.assert_not_called()
+    cancel.assert_not_called()
+
+    db_session.expire_all()
+    fresh = db_session.get(models.Claim, claim.id)
+    assert fresh.status == "auto_captured"
+    assert fresh.auto_captured_at is not None
+    assert fresh.captured_at is None
+    assert fresh.completed_at is None
+    fresh_credit = db_session.get(models.Credit, credit.id)
+    assert fresh_credit.used_at is not None
+    assert fresh_credit.used_claim_id == claim.id
+    assert db_session.get(models.Listing, active_listing.id).status == "completed"
+    assert db_session.get(models.User, picker_user.id).completed_pickups == 1
+    assert db_session.get(models.User, giver_user.id).completed_giveaways == 1
+
+    stripe_payloads = [c.args[0] for c in stripe_error_spy.call_args_list if c.args]
+    sweeper_payloads = [c.args[0] for c in sweeper_error_spy.call_args_list if c.args]
+    assert any("stripe_release_divergence_already_released" in p for p in stripe_payloads)
+    assert not any(
+        "post_window_capture_underfunded_likely_stripe_autovoid" in p for p in stripe_payloads
+    )
+    assert not any("post_window_sweeper_underfunded" in p for p in sweeper_payloads)
+
+    picker_notif = (
+        db_session.query(models.Notification)
+        .filter(
+            models.Notification.recipient_id == picker_user.id,
+            models.Notification.notification_type == "claim_auto_captured_picker",
+        )
+        .one()
+    )
+    assert picker_notif.body == COVERED_COMPLETION_PUSH_BODY
+
+    # Closed for good: the next run has nothing to do with it.
+    second = run_post_window_sweeper(db_session)
+    assert second.captured == 0
+    assert second.skipped_underfunded == 0
+    assert second.errored == 0

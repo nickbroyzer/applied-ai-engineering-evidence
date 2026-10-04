@@ -1,7 +1,7 @@
 """
 RAG Phase 2 ingestion tests (docs/agents/14-rag-ingestion-architecture.md §14).
 
-Covers: full-corpus ingestion of the real policy docs (12 docs, internal
+Covers: full-corpus ingestion of the real policy docs (16 docs, internal
 tier excluded), null embeddings, idempotent re-runs, changed-doc chunk
 replacement, the §6 validation contract (missing frontmatter, rag_index
 'never', internal audience, D212 deny-list, public_rag_safe cross-field
@@ -17,7 +17,7 @@ from app.services.knowledge.ingestion import discover_policy_docs, run_ingestion
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-PUBLIC_DOC_COUNT = 8
+PUBLIC_DOC_COUNT = 12  # Session 463 (D536): 8 refreshed + 4 new public articles
 CX_DOC_COUNT = 4
 TOTAL_DOC_COUNT = PUBLIC_DOC_COUNT + CX_DOC_COUNT
 
@@ -83,7 +83,7 @@ def _cx_frontmatter(**overrides) -> dict:
     return _frontmatter(**cx)
 
 
-# --- 1 + 2: full real-corpus ingestion, exactly 12 documents.
+# --- 1 + 2: full real-corpus ingestion, every current document.
 
 
 def test_ingests_all_current_public_and_cx_docs(db_session):
@@ -102,11 +102,11 @@ def test_ingests_all_current_public_and_cx_docs(db_session):
     assert stored_paths == on_disk
 
 
-def test_stores_exactly_twelve_documents(db_session):
+def test_stores_every_current_document(db_session):
     run_ingestion(db_session, REPO_ROOT)
 
     docs = db_session.query(models.KnowledgeDocument).all()
-    assert len(docs) == 12
+    assert len(docs) == TOTAL_DOC_COUNT
     assert sum(1 for d in docs if d.rag_index == "public") == PUBLIC_DOC_COUNT
     assert sum(1 for d in docs if d.rag_index == "cx") == CX_DOC_COUNT
 

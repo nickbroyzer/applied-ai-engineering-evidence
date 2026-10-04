@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 
 from app import models
-from app.jobs.pending_payment_sweeper import run_pending_payment_sweeper
+from app.jobs.pending_payment_sweeper import run_pending_payment_sweeper, run_pending_payment_sweeper_for_claim
 
 
 def _make_claim(db_session, listing, picker, *, status, claimed_offset_minutes: float):
@@ -225,3 +225,33 @@ def test_no_live_hold_still_cancels(
     fresh = db_session.get(models.Claim, claim.id)
     assert fresh.status == "cancelled"
     assert fresh.cancelled_at is not None
+
+
+def test_single_claim_sweep_skips_ineligible(
+    db_session, picker_user, active_listing, mock_stripe_pi_cancel,
+):
+    claim = _make_claim(
+        db_session, active_listing, picker_user,
+        status="pending_payment", claimed_offset_minutes=-2,
+    )
+
+    assert run_pending_payment_sweeper_for_claim(db_session, claim.id) is None
+
+    db_session.expire_all()
+    fresh = db_session.get(models.Claim, claim.id)
+    assert fresh.status == "pending_payment"
+    assert fresh.cancelled_at is None
+
+
+def test_single_claim_sweep_cancels_eligible(
+    db_session, picker_user, active_listing, mock_stripe_pi_cancel,
+):
+    claim = _make_claim(
+        db_session, active_listing, picker_user,
+        status="pending_payment", claimed_offset_minutes=-6,
+    )
+
+    assert run_pending_payment_sweeper_for_claim(db_session, claim.id) == "cancelled"
+
+    db_session.expire_all()
+    assert db_session.get(models.Claim, claim.id).status == "cancelled"

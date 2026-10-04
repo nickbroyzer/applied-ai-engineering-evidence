@@ -1,10 +1,3 @@
-# ---------------------------------------------------------------------------
-# SANITIZED FOR PUBLICATION. The expected trust scores in this file were the
-# tuned model constants in arithmetic form, so they are withheld alongside
-# the constants themselves in trust_service.py. Test names, structure and
-# the scenarios they cover are unchanged — what is tested is visible; what
-# the numbers are tuned to is not. See MANIFEST.md.
-# ---------------------------------------------------------------------------
 """Trust score tests — locked model.
 
 Covered scenarios (per locked spec):
@@ -41,26 +34,26 @@ def _add_event_at(db_session, user_id, event_type: str, when: datetime) -> None:
 
 def test_new_user_scores_zero_and_word_new(db_session, picker_user):
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 0
     assert trust_word(picker_user) == "New"
     db_session.commit()
     db_session.refresh(picker_user)
-    assert picker_user.trust_score == WITHHELD
+    assert picker_user.trust_score == 0
 
 
 def test_first_clean_completion_scores_10(db_session, picker_user):
     _add_events(db_session, picker_user.id, "pickup_completed")
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 10
     db_session.commit()
     db_session.refresh(picker_user)
-    assert picker_user.trust_score == WITHHELD
+    assert picker_user.trust_score == 10
 
 
 def test_giveaway_completion_also_earns_10(db_session, picker_user):
     _add_events(db_session, picker_user.id, "giveaway_completed")
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 10
 
 
 def test_first_infraction_is_free(db_session, picker_user):
@@ -68,7 +61,7 @@ def test_first_infraction_is_free(db_session, picker_user):
     _add_events(db_session, picker_user.id, "pickup_completed")
     _add_events(db_session, picker_user.id, "no_show")
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 10
 
 
 def test_second_no_show_scores_negative_30(db_session, picker_user):
@@ -76,7 +69,7 @@ def test_second_no_show_scores_negative_30(db_session, picker_user):
     _add_events(db_session, picker_user.id, "pickup_completed")
     _add_events(db_session, picker_user.id, "no_show", count=2)
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == -30
 
 
 def test_second_late_cancel_scores_negative_10(db_session, picker_user):
@@ -84,7 +77,7 @@ def test_second_late_cancel_scores_negative_10(db_session, picker_user):
     _add_events(db_session, picker_user.id, "pickup_completed")
     _add_events(db_session, picker_user.id, "late_cancel", count=2)
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == -10
 
 
 def test_dispute_as_second_infraction_scores_negative_60(db_session, picker_user):
@@ -93,7 +86,7 @@ def test_dispute_as_second_infraction_scores_negative_60(db_session, picker_user
     _add_events(db_session, picker_user.id, "no_show")
     _add_events(db_session, picker_user.id, "dispute_lost_picker")
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == -60
 
 
 def test_dispute_lost_giver_deducts_70_as_second_infraction(db_session, picker_user):
@@ -102,7 +95,7 @@ def test_dispute_lost_giver_deducts_70_as_second_infraction(db_session, picker_u
     _add_events(db_session, picker_user.id, "no_show")
     _add_events(db_session, picker_user.id, "dispute_lost_giver")
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == -60
 
 
 def test_healed_infraction_stops_deducting(db_session, picker_user):
@@ -116,7 +109,7 @@ def test_healed_infraction_stops_deducting(db_session, picker_user):
     for _ in range(5):
         _add_event_at(db_session, picker_user.id, "pickup_completed", now - timedelta(days=10))
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 50
 
 
 def test_healing_requires_exactly_5_not_4(db_session, picker_user):
@@ -127,7 +120,7 @@ def test_healing_requires_exactly_5_not_4(db_session, picker_user):
     for _ in range(4):
         _add_event_at(db_session, picker_user.id, "pickup_completed", now - timedelta(days=10))
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD  # tuned arithmetic withheld
+    assert score == 20  # 4 completions earn 40, late_cancel deducts 20
 
 
 def test_score_goes_negative_and_clamps_at_floor(db_session, picker_user):
@@ -136,14 +129,14 @@ def test_score_goes_negative_and_clamps_at_floor(db_session, picker_user):
     # 1 free + 14 dispute_lost_picker @ -7 each = 100 - 98 = 2; more → clamp
     _add_events(db_session, picker_user.id, "dispute_lost_picker", count=20)
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == -999
 
 
 def test_many_completions_accumulate(db_session, picker_user):
     """12 completions earn 120, no ceiling reached."""
     _add_events(db_session, picker_user.id, "giveaway_completed", count=12)
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 120
 
 
 def test_unknown_event_types_ignored(db_session, picker_user):
@@ -152,7 +145,7 @@ def test_unknown_event_types_ignored(db_session, picker_user):
     _add_events(db_session, picker_user.id, "scam_flagged")
     _add_events(db_session, picker_user.id, "reported")
     score = recalculate_trust(db_session, picker_user.id)
-    assert score == WITHHELD
+    assert score == 10
 
 
 def test_column_updated_in_db(db_session, picker_user):
@@ -162,4 +155,4 @@ def test_column_updated_in_db(db_session, picker_user):
     recalculate_trust(db_session, picker_user.id)
     db_session.commit()
     db_session.refresh(picker_user)
-    assert picker_user.trust_score == WITHHELD
+    assert picker_user.trust_score == -10

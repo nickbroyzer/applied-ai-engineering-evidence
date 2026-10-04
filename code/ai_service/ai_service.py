@@ -28,11 +28,6 @@ class ListingAIResult(BaseModel):
     category: str
 
 
-class ReadabilityResult(BaseModel):
-    readable: bool
-    reason: str | None = None
-
-
 class ListingAIAnalysis(BaseModel):
     option_a: ListingAIResult
     option_b: ListingAIResult
@@ -198,110 +193,6 @@ Output only the JSON object. No markdown code fences, no extra commentary."""
             json.dumps(
                 {
                     "event": "ai_analyze_failure",
-                    "object_key": object_key,
-                    "latency_ms": int(
-                        (time.perf_counter() - start_time) * 1000
-                    ),
-                    "error_type": type(exc).__name__,
-                    "error_message": str(exc),
-                }
-            )
-        )
-        raise
-
-
-def check_listing_image_readability(object_key: str) -> ReadabilityResult:
-    start_time = time.perf_counter()
-    try:
-        s3 = _r2_s3_client()
-        try:
-            obj = s3.get_object(
-                Bucket=settings.r2_bucket_name,
-                Key=object_key,
-            )
-            image_bytes = obj["Body"].read()
-        except (ClientError, BotoCoreError) as e:
-            raise AIServiceError(f"R2 object fetch failed: {e!s}") from e
-
-        b64 = base64.standard_b64encode(image_bytes).decode("ascii")
-        media_type = _guess_image_media_type(object_key)
-
-        user_prompt = """You are evaluating whether a single photo is readable enough for a free-item giveaway listing.
-
-A photo is "readable" if a human viewer can identify the primary object: the photo is in focus, the lighting is sufficient, and the object fills enough of the frame to be the obvious subject.
-
-A photo is NOT readable if it is too blurry, too dark, the object is not visible, multiple unrelated objects compete for attention, or the photo is not of an object at all.
-
-Return a single JSON object with exactly these two keys, in this order, and no other keys:
-- "readable" (boolean)
-- "reason" (string or null) — a short free-text reason when readable is false; null when readable is true
-
-Output only the JSON object. No markdown code fences, no extra commentary."""
-
-        client = Anthropic(api_key=settings.anthropic_api_key)
-        try:
-            message = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=512,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": b64,
-                                },
-                            },
-                            {"type": "text", "text": user_prompt},
-                        ],
-                    }
-                ],
-            )
-        except Exception as e:
-            raise AIServiceError(f"Anthropic API request failed: {e!s}") from e
-
-        text_blocks = [
-            b.text
-            for b in message.content
-            if getattr(b, "type", None) == "text" and hasattr(b, "text")
-        ]
-        if not text_blocks:
-            raise AIServiceError("Model returned no text content to parse as JSON")
-        raw_text = "".join(text_blocks)
-
-        data = _parse_json_from_text(raw_text)
-
-        if not isinstance(data, dict):
-            raise AIServiceError("Parsed JSON is not an object")
-
-        try:
-            result = ReadabilityResult.model_validate(data)
-        except Exception as e:
-            raise AIServiceError(f"Response does not match expected schema: {e!s}") from e
-
-        logger.info(
-            json.dumps(
-                {
-                    "event": "ai_check_readability_success",
-                    "object_key": object_key,
-                    "latency_ms": int(
-                        (time.perf_counter() - start_time) * 1000
-                    ),
-                    "model": "claude-sonnet-4-6",
-                    "readable": result.readable,
-                    "reason": result.reason,
-                }
-            )
-        )
-        return result
-    except AIServiceError as exc:
-        logger.error(
-            json.dumps(
-                {
-                    "event": "ai_check_readability_failure",
                     "object_key": object_key,
                     "latency_ms": int(
                         (time.perf_counter() - start_time) * 1000

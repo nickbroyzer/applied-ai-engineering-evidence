@@ -1,7 +1,7 @@
 """Phase 6 STEP 2 slice (a) — scam detection rule engine tests.
 
 Eighteen tests, three per rule. Calls each check_rule_N function directly.
-Rules 1, 3, 5, 6 are pure-function tests; rules 2 and 4 use the db_session
+Rules 1, 3, 5, 6 are pure-function tests; rule 2 uses the db_session
 fixture from conftest. Wiring tests are slice (b)'s scope.
 """
 from datetime import datetime, timedelta
@@ -19,7 +19,6 @@ from app.services.scam_detection import (
     check_rule_3_payment,
     check_rule_3_phone,
     check_rule_3_scheduling_intent,
-    check_rule_4_repeated_no_shows,
     check_rule_5_duplicate_photo_hash,
     check_rule_6_forbidden_keywords,
     check_signal_address_in_chat,
@@ -60,25 +59,6 @@ def _create_listing(
     db_session.commit()
     db_session.refresh(listing)
     return listing
-
-
-def _create_no_show_claim(
-    db_session,
-    listing,
-    picker,
-    *,
-    no_show_at: datetime,
-) -> models.Claim:
-    claim = models.Claim(
-        listing_id=listing.id,
-        picker_id=picker.id,
-        status="no_show",
-        no_show_at=no_show_at,
-    )
-    db_session.add(claim)
-    db_session.commit()
-    db_session.refresh(claim)
-    return claim
 
 
 # --- Rule 2: Listing tempo (D264) ---------------------------------------
@@ -322,53 +302,6 @@ def test_run_message_soft_signal_checks_plain_chatter_returns_none():
 
 def test_run_message_soft_signal_checks_returns_first_match_category():
     assert run_message_soft_signal_checks("got it thanks") == "confirm"
-
-
-# --- Rule 4: Repeated no-shows ------------------------------------------
-
-def test_rule4_three_no_shows_in_30d_triggers(db_session, picker_user, giver_user):
-    now = datetime.utcnow()
-    for _ in range(3):
-        listing = _create_listing(db_session, giver_user)
-        _create_no_show_claim(
-            db_session, listing, picker_user, no_show_at=now - timedelta(days=5),
-        )
-    triggered, reason, action = check_rule_4_repeated_no_shows(
-        db_session, picker_user_id=picker_user.id, now=now,
-    )
-    assert triggered is True
-    assert reason == "Repeated no-shows in trailing 30 days"
-    assert action == "restrict_listing"
-
-
-def test_rule4_two_no_shows_in_30d_does_not_trigger(
-    db_session, picker_user, giver_user,
-):
-    now = datetime.utcnow()
-    for _ in range(2):
-        listing = _create_listing(db_session, giver_user)
-        _create_no_show_claim(
-            db_session, listing, picker_user, no_show_at=now - timedelta(days=5),
-        )
-    triggered, reason, action = check_rule_4_repeated_no_shows(
-        db_session, picker_user_id=picker_user.id, now=now,
-    )
-    assert triggered is False
-
-
-def test_rule4_old_no_shows_outside_window_do_not_trigger(
-    db_session, picker_user, giver_user,
-):
-    now = datetime.utcnow()
-    for _ in range(3):
-        listing = _create_listing(db_session, giver_user)
-        _create_no_show_claim(
-            db_session, listing, picker_user, no_show_at=now - timedelta(days=31),
-        )
-    triggered, reason, action = check_rule_4_repeated_no_shows(
-        db_session, picker_user_id=picker_user.id, now=now,
-    )
-    assert triggered is False
 
 
 # --- Rule 5: Duplicate photo hash (DEFERRED stub) -----------------------

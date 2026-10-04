@@ -3,7 +3,7 @@
 Implements the router half of 14-rag-ingestion-architecture.md §10 with no
 LLM, no embeddings, and no external APIs:
 
-- POST /knowledge/ask — unauthenticated public endpoint. Always queries the
+- POST /knowledge/ask — public-tier endpoint for signed-in accounts (D538). Always queries the
   literal 'public' index; a request naming any other tier is rejected with
   403 before retrieval runs. The tier is route-determined, never widened by
   a request parameter.
@@ -20,6 +20,7 @@ LLM, no embeddings, and no external APIs:
 import hashlib
 import logging
 import time
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -33,8 +34,10 @@ from app.schemas.knowledge import (
     KnowledgeQuestion,
     KnowledgeSource,
 )
+from app.services.api_abuse import record_api_signal
 from app.services.knowledge.answer import ComposedAnswer, compose_answer
 from app.services.knowledge.answer_eval import GENERATION_MODEL
+from app.services.knowledge.retrieval import VOYAGE_DAILY_CEILING, voyage_calls_today
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +93,30 @@ def _ask(
         composed=composed,
         latency_ms=latency_ms,
     )
+    # D538: Control Center alerts at 80% and 100% of the daily Voyage ceiling,
+    # once each per UTC day.
+    used = voyage_calls_today(db)
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if used >= VOYAGE_DAILY_CEILING:
+        record_api_signal(
+            db,
+            source_id=f"voyage-ceiling-100:{day}",
+            kind="Help hit its daily Voyage limit; keyword search until midnight UTC",
+            severity=7,
+            who="platform",
+            ref="knowledge/ask",
+            payload={"used": used, "ceiling": VOYAGE_DAILY_CEILING},
+        )
+    elif used >= VOYAGE_DAILY_CEILING * 8 // 10:
+        record_api_signal(
+            db,
+            source_id=f"voyage-ceiling-80:{day}",
+            kind="Help passed 80% of its daily Voyage limit",
+            severity=5,
+            who="platform",
+            ref="knowledge/ask",
+            payload={"used": used, "ceiling": VOYAGE_DAILY_CEILING},
+        )
     refused = composed.refused
     return KnowledgeAskResponse(
         outcome="refused" if refused else "answered",

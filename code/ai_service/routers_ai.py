@@ -6,19 +6,13 @@ from app.models import User
 from app.services.ai_service import (
     AIServiceError,
     ListingAIAnalysis,
-    ReadabilityResult,
     analyze_listing_image,
-    check_listing_image_readability,
 )
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
 class AnalyzePhotoRequest(BaseModel):
-    object_key: str
-
-
-class CheckReadabilityRequest(BaseModel):
     object_key: str
 
 
@@ -39,21 +33,6 @@ def analyze_photo(
     _require_own_object_key(payload.object_key, current_user)
     try:
         return analyze_listing_image(payload.object_key)
-    except AIServiceError:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI service temporarily unavailable",
-        )
-
-
-@router.post("/check-readability", response_model=ReadabilityResult)
-def check_readability(
-    payload: CheckReadabilityRequest,
-    current_user: User = Depends(get_current_user_detached),
-) -> ReadabilityResult:
-    _require_own_object_key(payload.object_key, current_user)
-    try:
-        return check_listing_image_readability(payload.object_key)
     except AIServiceError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

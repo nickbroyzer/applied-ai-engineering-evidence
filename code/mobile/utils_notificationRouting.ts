@@ -34,9 +34,10 @@ export async function routeNotification(item: RoutableNotification): Promise<voi
     // "Giver proposed 3 pickup times" is an action, not a status update — it goes
     // straight to the screen where the picker acts. Every other claim notification
     // opens the hub.
+    // porch_pickup_set is NOT in this list any more (Nick, 2026-09-21): curbside is confirmed
+    // on the hub itself, so the hub is the destination and no action screen stacks on top.
     if (
       item.notification_type === 'pickup_times_proposed' ||
-      item.notification_type === 'porch_pickup_set' ||
       item.notification_type === 'pickup_select_reminder_picker'
     ) {
       // Hub first, action screen on top. Both are fullScreenModals: replacing one with
@@ -46,6 +47,10 @@ export async function routeNotification(item: RoutableNotification): Promise<voi
       setTimeout(() => {
         router.push(`/listing/pickup-time?claim_id=${targetId}&listing_id=${item.listing_id}`);
       }, 0);
+    } else if (item.notification_type === 'new_message') {
+      // A message tap opens the hub with the keyboard up, as the thread branch below does
+      // (Nick, 2026-10-03, D568).
+      router.push(`/handoff/${targetId}?listingId=${item.listing_id}&focusComposer=1`);
     } else {
       router.push(`/handoff/${targetId}?listingId=${item.listing_id}`);
     }
