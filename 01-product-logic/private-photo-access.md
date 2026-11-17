@@ -67,7 +67,7 @@ starts with the uploader's user id (`cloudflare_r2.py:80-97`).
 - **Photo keys supplied by the client are not ownership-checked** on the
   completion-photo and message-image paths. The listing-analysis endpoint does
   check that the caller owns the object key it names
-  ([`../code/ai_service/routers_ai.py`](../code/ai_service/routers_ai.py)).
+  ([`../code/ai_service/EXCERPTS.md`](../code/ai_service/EXCERPTS.md)).
 - **Completion photos outlive account deletion**, kept as evidence of the
   handoff.
 

@@ -3,10 +3,10 @@
 One embedding call to find the policy text. Zero model calls to write the
 answer.
 
-Code: [`../code/knowledge/`](../code/knowledge/) — `retrieval.py`,
-`embeddings.py`, `answer.py`, `routers_knowledge.py`. Runnable, text-only:
-[`../runnable/knowledge-eval/`](../runnable/knowledge-eval/). All line numbers
-below are at Zelbi `8875721`.
+Code excerpts: [`../code/knowledge/EXCERPTS.md`](../code/knowledge/EXCERPTS.md),
+from `retrieval.py`, `embeddings.py` and `answer.py` at Zelbi `4772472b`.
+Runnable, text-only: [`../runnable/knowledge-eval/`](../runnable/knowledge-eval/).
+All line numbers below are at Zelbi `8875721`.
 
 ## What changed since September
 
@@ -102,10 +102,14 @@ Named plainly, because the absences are part of the design record:
   vectors, a matched refusal probe). It is therefore a conservative upper bound
   on query embeddings. It does not count ingestion or eval-harness calls, and the
   check-then-call is not atomic.
-- **The vector path is untested.** No backend test exercises embedding, fusion,
-  the ceiling or the alerts. The knowledge tests assume no key is present; four
-  of them fail if one is (`backend/lessons.md`, 2026-10-03), which is why the
-  recorded suite run blanks it.
+- **The vector path was untested at `8875721`.** No backend test exercised
+  embedding, fusion, the ceiling or the alerts. Since `0cd7e3ce` (2026-11-16),
+  seven tests in `tests/test_knowledge_hybrid_path.py` cover the vector half,
+  fusion, the similarity floor, the fallback to text and the daily ceiling, with
+  the embedding provider stubbed; the ceiling's 80% and 100% alerts are tested
+  only as rows in the admin health view. The other knowledge tests still assume
+  no key is present; four of them fail if one is (`backend/lessons.md`,
+  2026-10-03), which is why the recorded suite run blanks it.
 - **The golden eval runs text-only.** Both evals call the real `retrieve()`
   (`retrieval_eval.py:78`, `answer_eval.py:92`), so with a key and stored
   vectors they would go hybrid. But the recorded runs here have neither, and the
@@ -116,8 +120,8 @@ Named plainly, because the absences are part of the design record:
   privacy policy must name it).
 - **Stale docstrings.** Several module docstrings still say "no embeddings"
   (`retrieval.py:15,25,250-251`, `answer.py:4`, `routers_knowledge.py:3-4`,
-  `ingestion.py:3,16-17`). They are published verbatim; this page is the
-  correction.
+  `ingestion.py:3,16-17`). Two of them are quoted verbatim in the excerpts;
+  this page is the correction.
 
 ## What is never claimed
 

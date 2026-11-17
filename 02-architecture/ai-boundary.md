@@ -1,18 +1,30 @@
 # The AI boundary
 
-Two systems in this product touch the words "AI", and they made opposite calls.
-The interesting part is *why*.
+Three systems in this product touch the words "AI". Two let a model write, one
+does not, and the interesting part is *why*.
 
-| | Vision listing pipeline | Knowledge / policy answering |
+Every model call site in the backend, by `grep -rn -i "anthropic\|voyage" backend/app`
+at Zelbi `4772472b`:
+
+| Call site | Provider and model | What it does |
 |---|---|---|
-| A model writes output | yes — one multimodal call | **no** |
-| Embeddings / vectors | no | yes — one query embedding to *find* text, optional |
-| External API at request time | yes | one embedding call; **none** without a key or past the daily ceiling |
-| Failure mode if wrong | a bad listing draft the user edits | a **wrong policy answer** |
-| Determinism of the answer | not required | required |
-| Tests (`def test_`) | 10 | 109 |
+| `services/ai_service.py:170`, `analyze_listing_image` | Anthropic, `claude-sonnet-5-5` (`LISTING_AI_MODEL` in config) | The vision listing call. One photo in; two listing drafts, a confidence label, a soft-item flag and, in the same call, a restricted-item flag judged against the published prohibited-items rules (D620) out |
+| `services/agents/runner.py:157`, the support agent's tool loop | Anthropic, `claude-haiku-5-5` (`AGENT_MODEL`) | Up to 12 model calls per trust-and-safety report, with ten read-only tools; ends in a proposal for a person to approve, or a hand-off (D578) |
+| `services/knowledge/embeddings.py:30`, `embed_texts` | Voyage, `voyage-3.5` | Embeds policy passages at ingestion (`ingestion.py:431`) and the question at search time (`retrieval.py:214`). Finds text; writes nothing |
 
-Line numbers in this page are at Zelbi `8875721`.
+There is no other model call. The restricted-item check is not a separate call:
+it is three more keys in the vision call's JSON.
+
+| | Vision listing pipeline | Support agent | Knowledge / policy answering |
+|---|---|---|---|
+| A model writes output | yes — one multimodal call | yes — a proposed decision, and at most one short line a user can see, checked by a leak guard | **no** |
+| Embeddings / vectors | no | no (its policy-search tool uses Help's retrieval) | yes — one query embedding to *find* text, optional |
+| External API at request time | yes | yes, per queued report, under a daily spending cap | one embedding call; **none** without a key or past the daily ceiling |
+| Failure mode if wrong | a bad listing draft the user edits, or a photo wrongly stopped at the camera | a wrong proposal a person rejects; every failure hands the case to a person | a **wrong policy answer** |
+| Determinism of the answer | not required | not required; a person decides | required |
+| Tests (`def test_`) | 28 | 275 | 116 |
+
+Line numbers in this page are at Zelbi `4772472b`.
 
 ## Why Claude for vision
 
@@ -24,6 +36,23 @@ proposes; the person disposes.
 
 That is the whole justification. Where the human is in the loop and the cost of
 being wrong is an edit, a model is the right tool.
+
+The same call also judges the item against the published prohibited-items
+rules (D620). A restricted item cannot go past the camera. A missing answer
+counts as not restricted, so a model that leaves the keys out never blocks a
+giver, and a reason without a block is discarded.
+
+## Why a model for the support agent
+
+Reviewing a trust-and-safety report means reading a listing, its photos, a
+message thread and a history, then weighing them against policy. That is
+judgement over messy input, like the vision task, and the same rule applies: the
+model proposes and a person decides. The agent reads through ten read-only
+tools locked to the one case, never moves money, and never suspends anyone.
+Every error, refusal or malformed proposal hands the case to a person. The one
+piece of its text a user can see, a single line when a listing is removed, goes
+through a leak guard that fails closed. The scored rounds are in
+[`../06-case-studies/08-the-support-agent-4-of-10-then-9-of-10-then-4-of-4.md`](../06-case-studies/08-the-support-agent-4-of-10-then-9-of-10-then-4-of-4.md).
 
 ## Why deterministic for Help
 
@@ -63,7 +92,7 @@ rather than a leak.
 ## The five-stage model boundary
 
 The vision call's output is untrusted input. Five stages stand between it and
-the database ([`../code/ai_service/ai_service.py`](../code/ai_service/ai_service.py)):
+the database (excerpts in [`../code/ai_service/EXCERPTS.md`](../code/ai_service/EXCERPTS.md)):
 
 1. **Fence-tolerant JSON extraction.** Models wrap JSON in markdown fences
    sometimes and not others. The parser strips a leading fence line and a
@@ -95,10 +124,13 @@ model boundary debuggable after the fact rather than by re-running it.
 
 ## Tests
 
-10 backend tests across four files, provider mocked: four on the service, one on
-the route, two on object-key ownership, three on the item-type flag. The
-failure cases covered are a provider failure, an out-of-range confidence, an
-out-of-allowlist category (stage 4) and a foreign object key (403).
+28 backend tests across six files at `4772472b`, provider mocked: four on the
+service, one on the route, two on object-key ownership, three on the item-type
+flag, thirteen on the restricted-item flag (`test_ai_restricted.py`) and five on
+the short title (`test_ai_short_title.py`). At `8875721` there were 10, the
+first four files. The failure cases covered include a provider failure, an
+out-of-range confidence, an out-of-allowlist category (stage 4) and a foreign
+object key (403).
 
 In September there were 21. The other 11 tested the image-readability endpoint,
 which had no mobile caller and was deleted as dead code on 2026-10-03 (commit
@@ -107,17 +139,25 @@ on that path, and the fence-tolerant parse (stage 1) has no dedicated test.
 
 ## What this pipeline does not have
 
-Named plainly, because the absence is the honest part: **no retries, no explicit
-timeout, no circuit breaker, no model routing, no token accounting, no prompt
-versioning, no structured-output API, no tool use, no streaming.**
+Named plainly, because the absence is the honest part: **no retry policy of its
+own, no explicit timeout, no circuit breaker, no model routing, no token
+accounting, no prompt versioning, no structured-output API, no tool use, no
+streaming.** The client is built with the SDK's defaults, so the SDK's own two
+retries and its default timeout apply. Earlier versions of this page said "no
+retries"; that was never right.
 
-Any of those would be a reasonable next step. None of them is claimed. Streaming
-and per-task model selection exist in the construction-company platform
-described in [`system-overview.md`](system-overview.md), not here.
+Any of those would be a reasonable next step. None of them is claimed for the
+vision call. The support agent is different: it uses tool use, records tokens
+and cost for every model call and tool call, turns the SDK's retries off, and
+runs under a daily spending cap. Streaming and per-task model selection exist in
+the construction-company platform described in
+[`system-overview.md`](system-overview.md), not here.
 
 ## The model call that was removed
 
 A second endpoint checked whether an uploaded image was readable, using the same
 discipline and a two-key schema. It never had a mobile caller, and it was
-deleted with its tests on 2026-10-03 (`b6ced95`). The vision listing call is now
-the only generating model call in the product (`ai_service.py:123`).
+deleted with its tests on 2026-10-03 (`b6ced95`). At `8875721` the vision
+listing call was the only generating model call in the product. Since then the
+support agent's tool loop has become the second; the table at the top lists
+both.

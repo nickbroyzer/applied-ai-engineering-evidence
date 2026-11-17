@@ -3,7 +3,7 @@
 **Commit:** `5d02d80c1dbb976c83fd37e33fccc65c392d5adc` · 2026-07-30
 **Message, verbatim:** `fix(mobile): stop badge polls logging the user out, split PKCE onto an OAuth-only Supabase client`
 **Decisions:** [`D276`](../03-decisions/ops/D276.md), [`D277`](../03-decisions/ops/D277.md)
-**Code:** [`../code/mobile/utils_supabase.ts`](../code/mobile/utils_supabase.ts), [`../code/mobile/store_auth.ts`](../code/mobile/store_auth.ts)
+**Code:** [`../code/mobile/EXCERPTS.md`](../code/mobile/EXCERPTS.md), [`../code/mobile/EXCERPTS.md`](../code/mobile/EXCERPTS.md)
 
 ## Symptom
 

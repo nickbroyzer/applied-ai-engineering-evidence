@@ -2,8 +2,8 @@
 
 **Commit:** `14243ef3cbc1d93b3d4fffe60666b6c6e9f17572` · 2026-08-11
 **Message, verbatim:** `claims: a picker who actually paid keeps his claim when the authorize webhook never lands`
-**Code:** [`../code/payments/pending_payment_sweeper.py`](../code/payments/pending_payment_sweeper.py)
-**Tests:** [`../code/payments/test_pending_payment_sweeper.py`](../code/payments/test_pending_payment_sweeper.py)
+**Code:** [`../code/payments/EXCERPTS.md`](../code/payments/EXCERPTS.md)
+**Tests:** [`../code/payments/EXCERPTS.md`](../code/payments/EXCERPTS.md)
 
 ## Symptom
 

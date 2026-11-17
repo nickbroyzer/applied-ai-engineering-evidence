@@ -3,8 +3,8 @@
 **Commit:** `26eaa9bb7fc6e48cb637a7db9d16fb321a5fd0d5` · 2026-08-11
 **Message, verbatim:** `coordinate privacy: the fuzzed point is keyed by a server secret and every stored point is recomputed under it`
 **Decision:** [`D323`](../03-decisions/privacy/D323.md) · related [`D320`](../03-decisions/privacy/D320.md), [`D321`](../03-decisions/privacy/D321.md), [`D322`](../03-decisions/privacy/D322.md)
-**Code:** [`../code/coordinate_privacy/coordinate_privacy.py`](../code/coordinate_privacy/coordinate_privacy.py)
-**Tests:** [`../code/coordinate_privacy/test_coordinate_privacy.py`](../code/coordinate_privacy/test_coordinate_privacy.py)
+**Code:** [`../code/coordinate_privacy/EXCERPTS.md`](../code/coordinate_privacy/EXCERPTS.md)
+**Tests:** [`../code/coordinate_privacy/EXCERPTS.md`](../code/coordinate_privacy/EXCERPTS.md)
 
 ## Symptom
 

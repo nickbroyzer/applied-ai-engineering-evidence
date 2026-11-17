@@ -2,7 +2,7 @@
 
 **Commit:** `884af15662b7c94166ca9f62ec4624693735c029` · 2026-08-13
 **Sentry issue:** `PYTHON-FASTAPI-9`
-**Code:** [`../code/database/database.py`](../code/database/database.py)
+**Code:** [`../code/database/EXCERPTS.md`](../code/database/EXCERPTS.md)
 
 ## Symptom
 
@@ -77,7 +77,7 @@ unrelated visit to a dashboard. A caught-and-logged exception inside a cron
 runner gives the error reporter nothing to notice — which is why the
 observability work that followed added an explicit capture call inside each
 `except` block rather than relying on propagation. See
-[`../code/database/observability.py`](../code/database/observability.py) and
+[`../code/database/EXCERPTS.md`](../code/database/EXCERPTS.md) and
 [`../03-decisions/ops/D274.md`](../03-decisions/ops/D274.md).
 
 ## Test

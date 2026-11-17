@@ -2,7 +2,7 @@
 
 The *shape* of the model is the design, and the shape is here. The tuned
 numbers — deduction weights, heal threshold, score bounds, strike thresholds and
-window lengths — are published in the code
+window lengths — are published in the code excerpts
 ([`../code/trust/`](../code/trust/)); they were withheld in September, but the
 published tests and the user-facing notice copy already stated them, so
 withholding them protected nothing ([`../MANIFEST.md`](../MANIFEST.md) §1.2).

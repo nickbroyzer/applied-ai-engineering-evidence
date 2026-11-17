@@ -1,12 +1,16 @@
 # Decision records — index
 
-Forty-eight entries selected from the 564 in the private decision log at
-`8875721`, grouped by theme. Each is copied **verbatim**, with no edits.
+Sixty-one entries from the private decision log, grouped by theme: 48 selected
+from the 564 at `8875721`, and 13 added on 2026-11-17 from the 639 at
+`4772472b` (marked **new**). Each is copied **verbatim**. The only edits are
+redactions (an email address, local file paths, app bundle identifiers, the
+secrets manager's name and seed test-persona names), each listed by file and
+line in [`../MANIFEST.md`](../MANIFEST.md) §7.
 
 The count is verifiable: every line that opens a `D<n>` entry — including
-list-item and struck-through entries — yields 564 distinct decisions, highest
-`D574`. The command is in
-[`../verification/repo-metrics-2026-10-03.md`](../verification/repo-metrics-2026-10-03.md).
+list-item and struck-through entries — yields 639 distinct decisions at
+`4772472b`, highest `D649`. The command is in
+[`../verification/repo-metrics-2026-11-17.md`](../verification/repo-metrics-2026-11-17.md).
 
 **Correction.** The September version of this page said "406 distinct
 decisions" from "parsing every `D<n>` entry". That figure reproduces exactly at
@@ -53,6 +57,9 @@ Read as: **the question → the ruling → what shipped.**
 | [D318](trust/D318.md) | Does blocking cost the picker money? | **Never** — no fee, no strike, whatever the timing | The block cancel path |
 | [D542](trust/D542.md) | What earns a first-giveaway credit, and what stops it being farmed? | Only a completed handoff, once per person; **unspendable until the iPhone passes Apple DeviceCheck** | The credit service and the DeviceCheck gate |
 | [D544](trust/D544.md) | When does a referral pay the referrer? | Only on the friend's first qualifying donation; matching cards or one iPhone for two friends earn nothing | The referral credit rules |
+| [D577](trust/D577.md) **new** | How does someone report a problem, and what may the support agent touch? | **One way to report**, the Report a problem screen, with three ways in; the agent's scope is set here | The report screen and the agent's scope |
+| [D579](trust/D579.md) **new** | What happens to a threat in chat? | **Blocked before delivery**, a safety-filter complaint opened, the agent pauses at once and alerts for a suspension | The chat threat gate |
+| [D580](trust/D580.md) **new** | What happens when the giver doesn't show? | The picker reports it with one confirm; the support agent reviews it; **a Zelbi credit, never cash**, on a confirmed no-show | The missed-pickup report and review — D207's gap, now built |
 
 ## privacy — location and data
 
@@ -65,6 +72,9 @@ Read as: **the question → the ruling → what shipped.**
 | [D321](privacy/D321.md) | What does a stranger's profile show? | The approximate point, matching every feed query | The by-user endpoint override |
 | [D322](privacy/D322.md) | Does a blocked party keep their receipt? | Yes — minus the address. A receipt is a record | The receipt filter |
 | [D323](privacy/D323.md) | The fuzzing was reversible. Now what? | Key it with a server secret **and recompute every stored point** | The HMAC derivation + a 127-row recompute |
+| [D402](privacy/D402.md) **new** | Which claim does an old notification open? | **The claim it carries**, never the newest claim on the listing | Both screens load by claim id (case study 03) |
+| [D636](privacy/D636.md) **new** | Does arrival detection justify background location? | Yes, **for one feature only**: a stream that starts near the item and stops after 15 minutes, 1.5 km or the window's end; no coordinates reach the server | The arrival stream, rings kept as fallback (case study 05) |
+| [D637](privacy/D637.md) **new** | Must the stream start only at the hub's 600 m check? | No — **anywhere within 1 km**, from the first significant-change report; the 15-minute limit stands | Amends D636 |
 
 ## ai — the vision pipeline, Help search, and their scope
 
@@ -76,7 +86,9 @@ Read as: **the question → the ruling → what shipped.**
 | D213 — withheld from the public repository; available on request. |
 | [D438](ai/D438.md) | How is the photo gate voiced? | One voice, the camera pill — implements D122 | The capture screen |
 | [D440](ai/D440.md) | Cached analysis skips the beat? | No — it still plays | The AI screen timing |
+| [D537](ai/D537.md) **new** | Should Help find articles by meaning? | Yes: embeddings fused with text search by reciprocal rank, a calibrated 0.45 floor, **text-only on any embedding failure** | The hybrid retrieval (case study 07) |
 | [D538](ai/D538.md) | How is paid Help search kept from running up the bill? | Signed-in only, 30 an hour; **1,000 embedded questions a day, then text-only**; alerts at 80% and 100% | The daily ceiling and its alerts |
+| [D578](ai/D578.md) **new** | What may a model do with a trust-and-safety report? | **Propose, never decide**: read-only tools, a person approves, a daily spending cap, a leak guard, undoable actions only at hour 23 | The support agent (case study 08) |
 
 ## ops — observability, limits, auth, jobs
 
@@ -91,16 +103,21 @@ Read as: **the question → the ruling → what shipped.**
 | [D277](ops/D277.md) | May a background poll end a session? | **Never** | Polls gated on a restored session |
 | [D442](ops/D442.md) | Is a rate-limit hit a user-facing bug? | No — an admin signal. The ceilings stay | Ceilings kept, reads unmetered |
 | [D444](ops/D444.md) | Does the claim depend on the arrival ping? | No — the ping is a fast lane, not the engine | The arrival path |
+| [D410](ops/D410.md) **new** | Why had the day-before reminders never fired? | They shared a query no claim could satisfy; **they select on the pickup time now** | Their own query, 23–25 hours ahead (case study 01) |
+| [D625](ops/D625.md) **new** | May a swiped-away lock-screen card silence a later moment? | **Never**: the phone reports the cards it really has, and the server reconciles | The reconcile call (case study 06) |
+| [D627](ops/D627.md) **new** | Card and banner for the same moment? | **Card or banner, never both**; the banner only when no card will show it | Partial reversal of D625 (case study 06) |
+| [D629](ops/D629.md) **new** | When does "You're here" stamp? | Only on one reading within 25 m whose own accuracy is 20 m or better; region wakes are silent | The arrival stamp rule |
+| [D635](ops/D635.md) **new** | Arrival didn't fire at the door in the walk. Now what? | A silent 50 m ring and retried loads; the stamp rule unchanged | The third ring and the retry (case study 05) |
 
 ---
 
-## How these 48 were chosen
+## How these were chosen
 
 Selected by theme against the five areas the résumé makes claims about — money,
 trust, privacy, AI, and operations — with three further filters:
 
 1. **The ruling has a consequence in shipped code**, so a reviewer can follow it
-   into [`../code/`](../code/).
+   into the excerpts in [`../code/`](../code/).
 2. **Decisions that reversed something are preferred over decisions that
    confirmed something.** D183 (what the rebuild retired), D217 (superseded by
    D218), D264 and D270 (rules deleted), D306 (correcting D305's premises) are
@@ -109,10 +126,11 @@ trust, privacy, AI, and operations — with three further filters:
    (no per-message model), D207 (deferred, with the blocker named). Deciding not
    to build is the harder half of the record.
 
-Per-entry reasons for all 48 are in [`../MANIFEST.md`](../MANIFEST.md) for
-review at the gate.
+Per-entry reasons for the first 48 are in [`../MANIFEST.md`](../MANIFEST.md)
+§3. The 13 added on 2026-11-17 are the decisions the case studies in
+[`../06-case-studies/`](../06-case-studies/) cite; MANIFEST §7 lists them.
 
 **Not selected, and worth saying:** the log is dominated by UI and copy rulings —
 panel heights, corner radii, button labels, animation timing. They are real
-decisions and they are most of the 564, but they prove craft in a domain the
+decisions and they are most of the 639, but they prove craft in a domain the
 résumé does not claim, so they are out.

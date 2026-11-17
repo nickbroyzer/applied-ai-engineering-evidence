@@ -29,7 +29,9 @@ def test_post_analyze_photo_returns_ab_shape(mocker, auth_client, giver_user):
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert set(body.keys()) == {"option_a", "option_b", "confidence", "soft_item"}
+    assert set(body.keys()) == {
+        "option_a", "option_b", "confidence", "soft_item", "restricted", "restricted_reason",
+    }
     assert body["option_a"]["title"] == "Vintage Singer 99K Sewing Machine"
     assert body["option_a"]["category"] == "Appliances"
     assert body["option_b"]["title"] == "Sewing machine"

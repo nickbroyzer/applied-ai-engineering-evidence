@@ -9,21 +9,27 @@ AI-assisted delivery reliable — and the code, with its tests.
 
 The systems themselves are private. This is what can be shown.
 
+**Status:** Zelbi is live on the App Store (iPhone) since 2026-11-04. As of
+2026-11-16: 37 sign-ups and 16 listings from 4 people in the first 12 days after
+launch, and no real pickup completed yet. My own and test accounts are excluded
+from those figures.
+
 **Full repository walkthrough available on request during interviews.**
 
 ## Six verified numbers
 
-Every one re-derived on 2026-10-03 at commit `8875721`, with the command that
-produced it in [`verification/repo-metrics-2026-10-03.md`](verification/repo-metrics-2026-10-03.md).
-The September figures, at `3413d028`, are kept beside them as history.
+Every one re-derived on 2026-11-17 at commit `4772472b`, with the command that
+produced it in [`verification/repo-metrics-2026-11-17.md`](verification/repo-metrics-2026-11-17.md).
+The October figures, at `8875721`, and the September figures, at `3413d028`, are
+kept beside them as history.
 
 | | |
 |---|---|
-| **2,122** | commits, one Git author, 2026-04-09 → 2026-10-03 |
-| **155** | active development days (177 calendar days) |
-| **1,265** | backend tests, collected and passed from a clean checkout with outbound network blocked at the socket layer — [verbatim run](verification/pytest-summary-2026-10-03.txt) |
-| **61** | Alembic migrations |
-| **564** | numbered decisions in the log; 48 published here |
+| **2,484** | commits, one Git author, 2026-04-09 → 2026-11-16 |
+| **188** | active development days (222 calendar days) |
+| **2,565** | backend tests, passed locally on 2026-11-17 from a clean checkout with outbound network blocked at the socket layer — [verbatim run](verification/pytest-summary-2026-11-17.txt). On CI at the same commit: `2554 passed, 11 skipped` — the 11 need a GeoLite2 file the runner doesn't have — [CI run](verification/ci-run-2026-11-17.md) |
+| **74** | Alembic migrations |
+| **639** | numbered decisions in the log; 61 published here |
 | **22 / 22** | golden evaluation cases, **0 leak failures** — and you can run it yourself: [`runnable/knowledge-eval/`](runnable/knowledge-eval/) |
 
 ## The system
@@ -33,18 +39,22 @@ a small claim fee, taken as a card authorization hold, so that "I'll take it"
 means something to the person waiting at the door.
 
 ```
-  React Native / Expo client — 38 route screens
+  React Native / Expo client — 43 route screens
                     │
                     ▼
-  FastAPI — 22 routers, 25 services, per-route rate limiting
+  FastAPI — 28 routers, 35 services, per-route rate limiting
     │         │            │             │              │
     ▼         ▼            ▼             ▼              ▼
   Postgres  Photos     Money path     AI boundary   Knowledge
-  +PostGIS  private,   authorize/     one vision    1 embedding
-  61 revs   signed     capture/void/  call, five-   call finds
-            URLs only  refund/        stage         text; NO model
-                       webhooks/      hardening     writes the
-                       sweepers                     answer. RUNNABLE →
+  +PostGIS  private,   authorize/     two model     1 embedding
+  74 revs   signed     capture/void/  calls: the    call finds
+            URLs only  refund/        vision call   text; NO model
+                       webhooks/      with its      writes the
+                       sweepers       restricted-   answer. RUNNABLE →
+                                      item flag;
+                                      the support
+                                      agent's tool
+                                      loop
                     │
           ┌─────────┴──────────┐
           ▼                    ▼
@@ -56,6 +66,12 @@ means something to the person waiting at the door.
 Full picture: [`02-architecture/system-overview.md`](02-architecture/system-overview.md).
 
 ## How to read this in ten minutes
+
+**Case studies.** [`06-case-studies/INDEX.md`](06-case-studies/INDEX.md) — nine
+short write-ups of problems found and fixed, each with its commits, tests and
+decisions: a reminder that had never fired, consent recorded before anyone
+agreed, an App Store rejection answered with walk data, a support agent's
+scored rounds. Start here.
 
 **If you have five minutes**, read two things:
 
@@ -75,7 +91,7 @@ empty. Its README says exactly what that leaves out, and records what happened
 when I tried three times to make it leak.
 
 **If you want to know how I think**, [`03-decisions/INDEX.md`](03-decisions/INDEX.md)
-is 48 decisions as *question → ruling → what shipped*, including the ones that
+is 61 decisions as *question → ruling → what shipped*, including the ones that
 reversed earlier decisions and the ones that ruled against building something.
 
 ## What's here
@@ -84,10 +100,11 @@ reversed earlier decisions and the ones that ruled against building something.
 |---|---|
 | [`01-product-logic/`](01-product-logic/) | The claim state machine, a 22-row failure-state matrix, the trust and safety model, location privacy, DeviceCheck-gated credits, private photo access |
 | [`02-architecture/`](02-architecture/) | System overview, the AI boundary, hybrid Help retrieval, the admin API and Sentry watcher, data and migrations, the money path, and the trade-offs with what each one cost |
-| [`03-decisions/`](03-decisions/) | 48 decision records, verbatim, by theme — money, trust, privacy, ai, ops |
+| [`03-decisions/`](03-decisions/) | 61 decision records, verbatim, by theme — money, trust, privacy, ai, ops |
 | [`04-troubleshooting/`](04-troubleshooting/) | Five production write-ups: symptom → diagnosis → fix → test → commit. Plus excerpts from the lessons files |
+| [`06-case-studies/`](06-case-studies/) | Nine case studies: what broke, the cause, the fix, the test, the commit and the decision |
 | [`05-process/`](05-process/) | The behavioural rulebook, the handoff protocol behind sessions numbered through 473, model routing, verification gates, and what each enforcement hook blocks |
-| [`code/`](code/) | Whole files with their tests: vision pipeline, knowledge system, payments, coordinate privacy, trust, message guard, admin API and Sentry watcher, DeviceCheck credits, photo access, database, jobs, mobile |
+| [`code/`](code/) | Short excerpts, not whole files: in each subfolder an `EXCERPTS.md` with the passages the write-ups and case studies cite, each with its source path and Zelbi commit. Full source of the core systems is not published — show the work, not the recipe |
 | [`runnable/`](runnable/) | The knowledge system, extracted and executable |
 | [`tooling/`](tooling/) | My own AI-delivery system: nine subagents, twelve hooks, the rules registry, the skills |
 | [`verification/`](verification/) | The runs and the commands that produced every number here |
@@ -104,9 +121,12 @@ unreachable, both parties block each other, or someone deletes their account
 mid-claim. Three principles run through it: fail closed and retry; a block must
 leave the user somewhere to go; safety actions must be free.
 
-**Determinism is a design choice, not a limitation.** One model call writes
-anything in the product — the vision call that drafts a listing, where a wrong
-answer costs the user an edit. Policy answering uses a model only to *find*
+**Determinism is a design choice, not a limitation.** Two model calls write
+anything in the product, and a person checks both. The vision call drafts a
+listing and, in the same call, flags an item the rules don't allow; a wrong
+answer costs the user an edit. The support agent's tool loop reads a
+trust-and-safety report and proposes a decision that a person approves; the
+one line of its text a user can see passes a leak guard. Policy answering uses a model only to *find*
 text: one embedding call ranks policy passages by meaning alongside full-text
 search. **Zero model calls write the answer**, because there a wrong answer is
 a false statement about someone's money, and the composer refuses rather than
@@ -121,7 +141,8 @@ shows the retrieval half, including what it does not yet test.
   regex and by hand; every finding is recorded in [`MANIFEST.md`](MANIFEST.md).
 - **The scam-detection rule table** — publishing the patterns publishes the
   evasion recipe. The normalizer that decodes evasion *before* the patterns run
-  is kept in full, because that is where the engineering is.
+  is shown in [`code/message_guard/EXCERPTS.md`](code/message_guard/EXCERPTS.md),
+  because that is where the engineering is.
 - **The real policy corpus** — replaced by three synthetic documents so the
   runnable package works.
 - **The construction-company platform's code** — described, not published.
@@ -140,13 +161,16 @@ Every removal is itemised with file and line range in
 
 ## Honesty notes
 
-This is pre-launch software in active development. There is no CI at this
-commit; there are no automated mobile tests — every mobile surface is verified by a recorded device walk (see 05-process/verification-gates.md); the double-capture guards are read-then-write
+This is software in active development, live for less than two weeks, with
+little real use yet. CI runs the backend suite and the mobile Node tests on
+every push ([`verification/ci-run-2026-11-17.md`](verification/ci-run-2026-11-17.md));
+beyond those three Node test files there are no automated mobile tests — every mobile surface is verified by a recorded device walk (see 05-process/verification-gates.md); the double-capture guards are read-then-write
 with no row lock on the capture path; arrival confirmation is client-reported.
-The embedding half of Help search has no test, and the recorded evals are
-text-only. Block enforcement is 14 helper call sites plus 4 inlined feed
-queries; an earlier résumé draft said "sixteen call sites", the résumé states no
-count, and [`LIMITATIONS.md`](LIMITATIONS.md) shows the command.
+The embedding half of Help search now has tests, with the embedding provider
+stubbed, but the recorded evals are text-only. Block enforcement is 17 helper
+call sites plus 4 inlined feed queries; an earlier résumé draft said "sixteen
+call sites", the résumé states no count, and [`LIMITATIONS.md`](LIMITATIONS.md)
+shows the command.
 
 I am the sole *human* code author of Zelbi. It was built with AI coding
 assistants under my direction; architecture, decisions, review and release
