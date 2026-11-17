@@ -21,7 +21,7 @@ it is three more keys in the vision call's JSON.
 | Embeddings / vectors | no | no (its policy-search tool uses Help's retrieval) | yes — one query embedding to *find* text, optional |
 | External API at request time | yes | yes, per queued report, under a daily spending cap | one embedding call; **none** without a key or past the daily ceiling |
 | Failure mode if wrong | a bad listing draft the user edits, or a photo wrongly stopped at the camera | a wrong proposal a person rejects; every failure hands the case to a person | a **wrong policy answer** |
-| Determinism of the answer | not required | not required; a person decides | required |
+| Determinism of the answer | not required | not required; a person decides (one timed exception) | required |
 | Tests (`def test_`) | 28 | 275 | 116 |
 
 Line numbers in this page are at Zelbi `4772472b`.
@@ -47,9 +47,10 @@ giver, and a reason without a block is discarded.
 Reviewing a trust-and-safety report means reading a listing, its photos, a
 message thread and a history, then weighing them against policy. That is
 judgement over messy input, like the vision task, and the same rule applies: the
-model proposes and a person decides. The agent reads through ten read-only
-tools locked to the one case, never moves money, and never suspends anyone.
-Every error, refusal or malformed proposal hands the case to a person. The one
+model proposes and a person decides, with one exception: after 23 hours with
+no action it may carry out a decision that can be undone. The agent reads
+through ten read-only tools locked to the one case, never moves money, and
+never suspends anyone. Every error, refusal or malformed proposal hands the case to a person. The one
 piece of its text a user can see, a single line when a listing is removed, goes
 through a leak guard that fails closed. The scored rounds are in
 [`../06-case-studies/08-the-support-agent-4-of-10-then-9-of-10-then-4-of-4.md`](../06-case-studies/08-the-support-agent-4-of-10-then-9-of-10-then-4-of-4.md).

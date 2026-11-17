@@ -103,7 +103,7 @@ reversed earlier decisions and the ones that ruled against building something.
 | [`03-decisions/`](03-decisions/) | 61 decision records, verbatim, by theme — money, trust, privacy, ai, ops |
 | [`04-troubleshooting/`](04-troubleshooting/) | Five production write-ups: symptom → diagnosis → fix → test → commit. Plus excerpts from the lessons files |
 | [`06-case-studies/`](06-case-studies/) | Nine case studies: what broke, the cause, the fix, the test, the commit and the decision |
-| [`05-process/`](05-process/) | The behavioural rulebook, the handoff protocol behind sessions numbered through 473, model routing, verification gates, and what each enforcement hook blocks |
+| [`05-process/`](05-process/) | The behavioural rulebook, the handoff protocol behind sessions numbered through 494, model routing, verification gates, and what each enforcement hook blocks |
 | [`code/`](code/) | Short excerpts, not whole files: in each subfolder an `EXCERPTS.md` with the passages the write-ups and case studies cite, each with its source path and Zelbi commit. Full source of the core systems is not published — show the work, not the recipe |
 | [`runnable/`](runnable/) | The knowledge system, extracted and executable |
 | [`tooling/`](tooling/) | My own AI-delivery system: nine subagents, twelve hooks, the rules registry, the skills |
@@ -122,11 +122,14 @@ mid-claim. Three principles run through it: fail closed and retry; a block must
 leave the user somewhere to go; safety actions must be free.
 
 **Determinism is a design choice, not a limitation.** Two model calls write
-anything in the product, and a person checks both. The vision call drafts a
-listing and, in the same call, flags an item the rules don't allow; a wrong
-answer costs the user an edit. The support agent's tool loop reads a
-trust-and-safety report and proposes a decision that a person approves; the
-one line of its text a user can see passes a leak guard. Policy answering uses a model only to *find*
+anything in the product. The giver reviews and edits every listing draft before
+it is posted. The support agent's decisions wait for a person, with one
+exception: after 23 hours with no action it may carry out a decision that can
+be undone, and it can never suspend anyone or move money. The vision call
+drafts a listing and, in the same call, flags an item the rules don't allow; a
+wrong answer costs the user an edit. The support agent's tool loop reads a
+trust-and-safety report and proposes a decision that a person approves, or at
+hour 23 an undoable one; the one line of its text a user can see passes a leak guard. Policy answering uses a model only to *find*
 text: one embedding call ranks policy passages by meaning alongside full-text
 search. **Zero model calls write the answer**, because there a wrong answer is
 a false statement about someone's money, and the composer refuses rather than
